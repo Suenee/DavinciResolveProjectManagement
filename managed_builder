@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+import argparse,configparser,importlib.machinery,importlib.util,os,re,shutil,sys,time
+from pathlib import Path
+APP=Path(__file__).resolve().parent; CONFIG=APP/'config.ini'; EXAMPLE=APP/'config.example.ini'; DATE=re.compile(r'^\d{8}\s+'); OPTIONAL=('IMAGES','PHOTOS','AUDIO')
+def load_life():
+ l=importlib.machinery.SourceFileLoader('life',str(APP/'resolve_lifecycle')); s=importlib.util.spec_from_loader(l.name,l); m=importlib.util.module_from_spec(s); l.exec_module(m); return m
+def cfg():
+ if not CONFIG.exists():shutil.copy2(EXAMPLE,CONFIG)
+ p=configparser.ConfigParser(); p.read(CONFIG,encoding='utf-8'); return Path(p.get('Paths','ProjectRoot')),p.get('DaVinciResolve','ResolveProjectFolder',fallback='').strip(),p.getint('DaVinciResolve','StartupTimeout',fallback=180),p.getint('DaVinciResolve','AliveTimeout',fallback=900)
+def dvr():
+ modules=Path(os.environ.get('PROGRAMDATA',r'C:\ProgramData'))/'Blackmagic Design'/'DaVinci Resolve'/'Support'/'Developer'/'Scripting'/'Modules'; sys.path.insert(0,str(modules)); import DaVinciResolveScript as d; return d
+def connect():
+ try:return dvr().scriptapp('Resolve')
+ except:return None
+def ensure(name,timeout):
+ r=connect()
+ if r:return r,False
+ life=load_life()
+ if life.any_resolve():raise RuntimeError('Resolve.exe běží, ale scripting API není dostupné.')
+ life.start_headless(name); end=time.time()+timeout
+ while time.time()<end:
+  r=connect()
+  if r:return r,True
+  time.sleep(2)
+ raise RuntimeError(f'Resolve se nepřihlásil k API do {timeout} s.')
+def files(d):return [str(x.resolve()) for x in sorted(d.iterdir(),key=lambda p:p.name.casefold()) if x.is_file()]
+def tree(mp,parent,d,life):
+ b=mp.AddSubFolder(parent,d.name)
+ if b is None:raise RuntimeError(f'Nelze vytvořit BIN {d.name}')
+ mp.SetCurrentFolder(b); life.put(stage=f'Importuji {d.name}…'); n=0; f=files(d)
+ if f:
+  x=mp.ImportMedia(f); n+=len(x) if x else 0
+ for c in sorted([x for x in d.iterdir() if x.is_dir()],key=lambda p:p.name.casefold()):n+=tree(mp,b,c,life)
+ return n
+def build(name,keep):
+ root,folder,timeout,alive=cfg(); src=root/name; shoot=src/'SHOOTING'
+ if not src.is_dir():raise RuntimeError(f'Adresář projektu neexistuje: {src}')
+ if not shoot.is_dir():raise RuntimeError(f'Chybí SHOOTING: {shoot}')
+ life=load_life(); r,started=ensure(name,timeout); life.put(busy=True,project=name,stage='Zakládám projekt…',keep_mode=keep,alive_timeout=alive)
+ try:
+  pm=r.GetProjectManager(); pm.GotoRootFolder()
+  if folder and not pm.OpenFolder(folder):raise RuntimeError(f'Project Library folder nenalezen: {folder}')
+  if name in pm.GetProjectListInCurrentFolder():raise RuntimeError(f'Projekt už existuje: {name}')
+  pr=pm.CreateProject(name); mp=pr.GetMediaPool(); master=mp.GetRootFolder(); total=tree(mp,master,shoot,life)
+  for dn in OPTIONAL:
+   d=src/dn
+   if d.is_dir():total+=tree(mp,master,d,life)
+  life.put(stage='Zakládám timeline…'); tb=mp.AddSubFolder(master,'TIMELINES'); mp.SetCurrentFolder(tb); tn=DATE.sub('',name,count=1).strip() or name; mp.CreateEmptyTimeline(tn); life.put(stage='Ukládám projekt…'); pm.SaveProject(); print(f'DONE: {name} | Timeline: {tn} | Imported media: {total}')
+ finally:life.put(busy=False,stage='Hotovo')
+ if started:
+  if keep=='none':life.stop_owned(r)
+  elif keep=='alive':life.launch_keeper()
+def main():
+ p=argparse.ArgumentParser(); p.add_argument('project'); g=p.add_mutually_exclusive_group(); g.add_argument('--alive',action='store_true'); g.add_argument('--persistent',action='store_true'); a=p.parse_args(); keep='persistent' if a.persistent else 'alive' if a.alive else 'none'
+ try:build(a.project,keep); return 0
+ except Exception as e:print('ERROR:',e,file=sys.stderr); return 1
+if __name__=='__main__':raise SystemExit(main())
