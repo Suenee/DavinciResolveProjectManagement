@@ -30,12 +30,16 @@ def start_gui():
  exe,_,_=settings()
  if not exe.exists():raise RuntimeError(f'Resolve.exe not found: {exe}')
  subprocess.Popen([str(exe)],cwd=str(exe.parent))
-def stop_owned():
- s=state(); pid=s.get('pid')
+def stop_owned(resolve=None):
+ s=state()
  if not(s.get('owned') and s.get('mode')=='headless'):return False
- if pid_running(pid):subprocess.run(['taskkill','/PID',str(pid)],capture_output=True,creationflags=subprocess.CREATE_NO_WINDOW); time.sleep(2)
- if pid_running(pid):subprocess.run(['taskkill','/F','/PID',str(pid)],capture_output=True,creationflags=subprocess.CREATE_NO_WINDOW)
- clear(); return True
+ if resolve is not None:
+  try:resolve.Quit()
+  finally:clear()
+  return True
+ return False
+def launch_keeper():
+ subprocess.Popen([sys.executable,str(Path(__file__)),'--idle-keeper'],cwd=str(APP_DIR),creationflags=subprocess.CREATE_NO_WINDOW)
 def keeper():
  s=state()
  if not(s.get('owned') and s.get('mode')=='headless'):return
@@ -46,5 +50,5 @@ def keeper():
   if s.get('keep_mode')=='persistent':return
   if s.get('busy'):deadline=time.time()+timeout
   time.sleep(2)
- stop_owned()
+ put(request_quit=True,stage='Idle timeout reached')
 if __name__=='__main__' and len(sys.argv)>1 and sys.argv[1]=='--idle-keeper':keeper()
