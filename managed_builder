@@ -15,13 +15,13 @@ def connect():
  except:return None
 def ensure(name,timeout):
  r=connect()
- if r:return r,False
+ if r:return r
  life=load_life()
  if life.any_resolve():raise RuntimeError('Resolve.exe běží, ale scripting API není dostupné.')
  life.start_headless(name); end=time.time()+timeout
  while time.time()<end:
   r=connect()
-  if r:return r,True
+  if r:return r
   time.sleep(2)
  raise RuntimeError(f'Resolve se nepřihlásil k API do {timeout} s.')
 def files(d):return [str(x.resolve()) for x in sorted(d.iterdir(),key=lambda p:p.name.casefold()) if x.is_file()]
@@ -37,7 +37,7 @@ def build(name,keep):
  root,folder,timeout,alive=cfg(); src=root/name; shoot=src/'SHOOTING'
  if not src.is_dir():raise RuntimeError(f'Adresář projektu neexistuje: {src}')
  if not shoot.is_dir():raise RuntimeError(f'Chybí SHOOTING: {shoot}')
- life=load_life(); r,started=ensure(name,timeout); life.put(busy=True,project=name,stage='Zakládám projekt…',keep_mode=keep,alive_timeout=alive)
+ life=load_life(); r=ensure(name,timeout); life.put(busy=True,project=name,stage='Zakládám projekt…',keep_mode=keep,alive_timeout=alive)
  try:
   pm=r.GetProjectManager(); pm.GotoRootFolder()
   if folder and not pm.OpenFolder(folder):raise RuntimeError(f'Project Library folder nenalezen: {folder}')
@@ -48,7 +48,8 @@ def build(name,keep):
    if d.is_dir():total+=tree(mp,master,d,life)
   life.put(stage='Zakládám timeline…'); tb=mp.AddSubFolder(master,'TIMELINES'); mp.SetCurrentFolder(tb); tn=DATE.sub('',name,count=1).strip() or name; mp.CreateEmptyTimeline(tn); life.put(stage='Ukládám projekt…'); pm.SaveProject(); print(f'DONE: {name} | Timeline: {tn} | Imported media: {total}')
  finally:life.put(busy=False,stage='Hotovo')
- if started:
+ owned=life.state(); ours=owned.get('owned') and owned.get('mode')=='headless' and life.pid_running(owned.get('pid'))
+ if ours:
   if keep=='none':life.stop_owned(r)
   elif keep=='alive':life.launch_keeper()
 def main():
