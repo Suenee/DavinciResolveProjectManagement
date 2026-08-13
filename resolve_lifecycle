@@ -25,7 +25,7 @@ def start_headless(project=''):
  exe,_,_=settings()
  if not exe.exists():raise RuntimeError(f'Resolve.exe not found: {exe}')
  p=subprocess.Popen([str(exe),'-nogui'],cwd=str(exe.parent),creationflags=subprocess.CREATE_NO_WINDOW)
- put(owned=True,mode='headless',pid=p.pid,busy=False,project=project,stage='Starting DaVinci Resolve',keep_mode='none'); return p.pid
+ put(owned=True,mode='headless',pid=p.pid,busy=False,project=project,stage='Spouštím DaVinci Resolve…',keep_mode='none'); return p.pid
 def start_gui():
  exe,_,_=settings()
  if not exe.exists():raise RuntimeError(f'Resolve.exe not found: {exe}')
@@ -40,6 +40,13 @@ def stop_owned(resolve=None):
  return False
 def launch_keeper():
  subprocess.Popen([sys.executable,str(Path(__file__)),'--idle-keeper'],cwd=str(APP_DIR),creationflags=subprocess.CREATE_NO_WINDOW)
+def get_resolve():
+ modules=Path(os.environ.get('PROGRAMDATA',r'C:\ProgramData'))/'Blackmagic Design'/'DaVinci Resolve'/'Support'/'Developer'/'Scripting'/'Modules'
+ if str(modules) not in sys.path:sys.path.insert(0,str(modules))
+ try:
+  import DaVinciResolveScript as d
+  return d.scriptapp('Resolve')
+ except Exception:return None
 def keeper():
  s=state()
  if not(s.get('owned') and s.get('mode')=='headless'):return
@@ -50,5 +57,6 @@ def keeper():
   if s.get('keep_mode')=='persistent':return
   if s.get('busy'):deadline=time.time()+timeout
   time.sleep(2)
- put(request_quit=True,stage='Idle timeout reached')
+ r=get_resolve()
+ if r is not None:stop_owned(r)
 if __name__=='__main__' and len(sys.argv)>1 and sys.argv[1]=='--idle-keeper':keeper()
