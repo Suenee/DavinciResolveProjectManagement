@@ -1,1 +1,0 @@
-Temporary carrier for Python source; final runtime filename is resolve_project_builder.py.
