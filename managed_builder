@@ -50,7 +50,10 @@ def build(name,keep):
  finally:life.put(busy=False,stage='Hotovo')
  owned=life.state(); ours=owned.get('owned') and owned.get('mode')=='headless' and life.pid_running(owned.get('pid'))
  if ours:
-  if keep=='none':life.stop_owned(r)
+  if keep=='none':
+   time.sleep(3)
+   owned=life.state()
+   if owned.get('owned') and life.pid_running(owned.get('pid')):life.stop_owned(r)
   elif keep=='alive':life.launch_keeper()
 def main():
  p=argparse.ArgumentParser(); p.add_argument('project'); g=p.add_mutually_exclusive_group(); g.add_argument('--alive',action='store_true'); g.add_argument('--persistent',action='store_true'); a=p.parse_args(); keep='persistent' if a.persistent else 'alive' if a.alive else 'none'
