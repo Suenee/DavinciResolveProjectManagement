@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 
 echo === DaVinci Resolve Project Management upgrade ===
@@ -15,11 +15,22 @@ if exist ".git\" (
     )
 )
 
-where python >nul 2>nul
-if errorlevel 1 (
-    echo ERROR: Python is not available in PATH.
+call :find_python
+if not defined PYTHON_EXE (
+    echo Python was not found. Installing Python 3.13...
+    call :install_python
+    if errorlevel 1 goto :error
+    call :find_python
+)
+
+if not defined PYTHON_EXE (
+    echo ERROR: Python installation finished, but python.exe could not be located.
     goto :error
 )
+
+echo Python found: %PYTHON_EXE%
+"%PYTHON_EXE%" --version
+if errorlevel 1 goto :error
 
 if not exist "config.ini" (
     if not exist "config.example.ini" (
@@ -41,11 +52,76 @@ if exist "%DVR_MODULE%" (
     echo Install DaVinci Resolve Studio 21 and verify the scripting components.
 )
 
-python -m py_compile "resolve_project_builder.py"
+echo Checking Python source...
+"%PYTHON_EXE%" -m py_compile "resolve_project_builder.py"
 if errorlevel 1 goto :error
 
 echo.
 echo Upgrade completed successfully.
+exit /b 0
+
+:find_python
+set "PYTHON_EXE="
+
+for %%P in (python.exe python3.exe) do (
+    where %%P >nul 2>nul
+    if not errorlevel 1 (
+        for /f "delims=" %%I in ('where %%P 2^>nul') do (
+            if not defined PYTHON_EXE (
+                "%%I" --version >nul 2>nul
+                if not errorlevel 1 set "PYTHON_EXE=%%I"
+            )
+        )
+    )
+)
+
+if not defined PYTHON_EXE if exist "%LocalAppData%\Programs\Python\Python313\python.exe" set "PYTHON_EXE=%LocalAppData%\Programs\Python\Python313\python.exe"
+if not defined PYTHON_EXE if exist "%LocalAppData%\Programs\Python\Python314\python.exe" set "PYTHON_EXE=%LocalAppData%\Programs\Python\Python314\python.exe"
+if not defined PYTHON_EXE if exist "%ProgramFiles%\Python313\python.exe" set "PYTHON_EXE=%ProgramFiles%\Python313\python.exe"
+if not defined PYTHON_EXE if exist "%ProgramFiles%\Python314\python.exe" set "PYTHON_EXE=%ProgramFiles%\Python314\python.exe"
+exit /b 0
+
+:install_python
+where winget >nul 2>nul
+if not errorlevel 1 (
+    echo Trying installation through winget...
+    winget install --id Python.Python.3.13 --exact --scope user --silent --accept-package-agreements --accept-source-agreements
+    if not errorlevel 1 (
+        call :find_python
+        if defined PYTHON_EXE exit /b 0
+    )
+    echo winget installation did not provide a usable Python. Trying direct installer...
+)
+
+set "PYTHON_VERSION=3.13.14"
+set "PYTHON_ARCH=amd64"
+if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "PYTHON_ARCH=arm64"
+if /I "%PROCESSOR_ARCHITEW6432%"=="ARM64" set "PYTHON_ARCH=arm64"
+
+set "PYTHON_INSTALLER=%TEMP%\python-%PYTHON_VERSION%-%PYTHON_ARCH%.exe"
+set "PYTHON_URL=https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-%PYTHON_ARCH%.exe"
+
+echo Downloading official Python %PYTHON_VERSION% installer...
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; Invoke-WebRequest -UseBasicParsing -Uri '%PYTHON_URL%' -OutFile '%PYTHON_INSTALLER%'"
+if errorlevel 1 (
+    echo ERROR: Python installer download failed.
+    exit /b 1
+)
+
+echo Installing Python %PYTHON_VERSION% for the current user...
+"%PYTHON_INSTALLER%" /quiet InstallAllUsers=0 PrependPath=1 Include_pip=1 Include_launcher=1 Include_test=0 Shortcuts=0
+set "INSTALL_RC=%ERRORLEVEL%"
+del /q "%PYTHON_INSTALLER%" >nul 2>nul
+if not "%INSTALL_RC%"=="0" (
+    echo ERROR: Python installer returned exit code %INSTALL_RC%.
+    exit /b %INSTALL_RC%
+)
+
+call :find_python
+if not defined PYTHON_EXE (
+    echo ERROR: Python was installed but cannot be located.
+    exit /b 1
+)
 exit /b 0
 
 :error
