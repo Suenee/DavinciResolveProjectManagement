@@ -6,6 +6,7 @@ from tkinter import ttk
 import managed_builder as m
 import resolve_lifecycle as life
 import timeline_audio
+import intro_match_routing
 
 _CREATOR=None
 
@@ -79,10 +80,11 @@ def ask(project_name,status):
  ttk.Button(buttons,text='OK',command=ok,width=13).pack(side='left',padx=6);ttk.Button(buttons,text='Cancel',command=cancel,width=13).pack(side='left',padx=6)
  root.bind('<Return>',ok);root.bind('<Escape>',cancel);root.protocol('WM_DELETE_WINDOW',cancel);m.center(root);root.mainloop();return result[0]
 
-def _create_timeline(mp,master,shoot,name,voice):
+def _create_timeline(mp,master,shoot,name,voice,intro_reference=None):
  if _CREATOR is None:raise RuntimeError('Timeline creator není inicializován.')
  timeline=_CREATOR(mp,master,shoot,name)
  if voice:timeline=timeline_audio.configure(timeline)
+ if voice and intro_reference:timeline=intro_match_routing.apply(mp,timeline,intro_reference)
  return timeline
 
 def build(query,keep):
@@ -113,7 +115,7 @@ def build(query,keep):
      counter=[0];imported=sum(m.sync(mp,master,d,missing,counter,len(missing)) for d in dirs if any(m.norm(p) in missing for p in m.allfiles(d)));life.log('SYNC_DONE',imported=imported);print(f'[OK] Doplněno médií: {imported}');changed=changed or imported>0
     else:print('[OK] Repozitář je aktuální.')
    if actions['timeline']:
-    tn=_unique_timeline_name(pr,base);_create_timeline(mp,master,shoot,tn,actions['voice']);life.log('TIMELINE_UPDATE_CREATED',timeline=tn,voice=actions['voice']);print(f'[OK] Vytvořena timeline: {tn}');changed=True
+    tn=_unique_timeline_name(pr,base);_create_timeline(mp,master,shoot,tn,actions['voice'],actions.get('intro_reference'));life.log('TIMELINE_UPDATE_CREATED',timeline=tn,voice=actions['voice'],intro_reference=actions.get('intro_reference'));print(f'[OK] Vytvořena timeline: {tn}');changed=True
    if actions['deliver']:
     m.apply_deliver(pr,src,deliver_preset,deliver_folder);changed=True
    if changed and not pm.SaveProject():raise RuntimeError('SaveProject() selhal.')
