@@ -13,6 +13,12 @@ echo Python found: %PYTHON_EXE%
 "%PYTHON_EXE%" --version
 if errorlevel 1 goto :error
 
+rem Keep this list authoritative. cleanup removes ONLY dependencies previously marked as installed by this project.
+set "REQUIRED_MANAGED_DEPS=python numpy ffmpeg"
+echo Checking obsolete project-managed dependencies...
+"%PYTHON_EXE%" "%~dp0dependency_manager.py" cleanup %REQUIRED_MANAGED_DEPS%
+if errorlevel 1 goto :error
+
 if not exist "config.example.ini" (echo ERROR: config.example.ini is missing.& goto :error)
 echo Migrating configuration...
 "%PYTHON_EXE%" "%~dp0config_migrate.py"
