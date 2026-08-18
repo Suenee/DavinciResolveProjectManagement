@@ -1,19 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import managed_builder
-import intro_detection
-import timeline_audio
+import project_update
 
-_original_create_initial_timeline = managed_builder.create_initial_timeline
+_base_create_initial_timeline=managed_builder.create_initial_timeline
+project_update.set_timeline_creator(_base_create_initial_timeline)
+managed_builder.build=project_update.build
 
-
-def _create_initial_timeline_with_audio(mp, master, shoot, timeline_name):
-    timeline = _original_create_initial_timeline(mp, master, shoot, timeline_name)
-    timeline = intro_detection.configure(mp, timeline, shoot)
-    return timeline_audio.configure(timeline)
-
-
-managed_builder.create_initial_timeline = _create_initial_timeline_with_audio
-
-if __name__ == '__main__':
-    raise SystemExit(managed_builder.main())
+if __name__=='__main__':
+ raise SystemExit(managed_builder.main())
