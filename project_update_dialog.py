@@ -15,7 +15,7 @@ class ToolTip:
  def show(self,*_):
   if self.tip:return
   x=self.widget.winfo_rootx()+20;y=self.widget.winfo_rooty()+22
-  self.tip=tk.Toplevel(self.widget);self.tip.wm_overrideredirect(True);self.tip.wm_geometry(f'+{x}+{y}')
+  self.tip=tk.Toplevel(self.widget);self.tip.wm_overrideredirect(True);self.tip.wm_geometry(f'{x:+d}{y:+d}')
   ttk.Label(self.tip,text=self.text,padding=(7,4)).pack()
  def hide(self,*_):
   if self.tip:self.tip.destroy();self.tip=None
@@ -38,9 +38,8 @@ def ask(project_name,status):
  repo=tk.BooleanVar(value=status['missing']>0)
  timeline=tk.BooleanVar(value=not status['timeline'])
  voice=tk.BooleanVar(value=True)
- intro=tk.BooleanVar(value=not status['has_set'])
  deliver=tk.BooleanVar(value=not status['deliver'])
- vars={'repository':repo,'timeline':timeline,'voice':voice,'intro':intro,'deliver':deliver}
+ vars={'repository':repo,'timeline':timeline,'voice':voice,'deliver':deliver}
  widgets={}
 
  def status_label(r,ready=None,number=None,tooltip=None):
@@ -60,15 +59,13 @@ def ask(project_name,status):
  row(2,'repository','Aktualizovat repozitář',0,number=status['missing'],tooltip='Počet souborů, které jsou na disku, ale nejsou v Media Poolu.')
  row(3,'timeline','Vytvořit timeline',0,ready=status['timeline'])
  row(4,'voice','Aktivovat Voice Isolation',24,ready=status['voice'])
- row(5,'intro','Vystřihnout znělku',48,ready=status['intro'],tooltip='Automatická detekce znělky je dostupná pouze pro SHOOTING bez SET xx.' if status['has_set'] else None)
- row(6,'deliver','Nastavit DELIVERY',0,ready=status['deliver'])
+ row(5,'deliver','Nastavit DELIVERY',0,ready=status['deliver'])
 
  def deps(*_):
   widgets['voice'].configure(state='normal' if timeline.get() else 'disabled')
-  widgets['intro'].configure(state='normal' if timeline.get() and voice.get() and not status['has_set'] else 'disabled')
- timeline.trace_add('write',deps);voice.trace_add('write',deps);deps()
+ timeline.trace_add('write',deps);deps()
 
- buttons=ttk.Frame(outer);buttons.grid(row=7,column=0,columnspan=3,pady=(9,0))
+ buttons=ttk.Frame(outer);buttons.grid(row=6,column=0,columnspan=3,pady=(9,0))
  def ok(*_):result[0]={k:v.get() for k,v in vars.items()};root.destroy()
  def cancel(*_):result[0]=None;root.destroy()
  ttk.Button(buttons,text='OK',command=ok,width=12).pack(side='left',padx=6)
