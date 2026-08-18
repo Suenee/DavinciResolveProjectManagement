@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.06 - 18.08.2026
+
+- Fixed multi-monitor positioning for application dialogs when DaVinci Resolve is on a monitor with negative virtual-screen coordinates.
+- Dialog geometry now uses explicit signed coordinates such as `-1920+200` instead of invalid `+-1920+200` forms.
+- Removed Win32 owner reassignment from dialog Z-order handling so Windows cannot relocate the Tk window after geometry is applied.
+- Dialogs are hidden during initial Tk creation and shown only after their final Resolve-relative position is calculated.
+- Restored a compact update-dialog row height by reducing status-symbol font size and removing extra row padding while retaining colored diagnostics.
+
 ## 1.05 - 18.08.2026
 
 - Restored compact vertical spacing in the existing-project update dialog to match the approved reference layout.
