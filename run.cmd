@@ -6,7 +6,7 @@ for %%P in (python.exe python3.exe) do if not defined PYTHON_EXE for /f "delims=
 if not defined PYTHON_EXE if exist "%LocalAppData%\Programs\Python\Python313\python.exe" set "PYTHON_EXE=%LocalAppData%\Programs\Python\Python313\python.exe"
 if not defined PYTHON_EXE if exist "%LocalAppData%\Programs\Python\Python314\python.exe" set "PYTHON_EXE=%LocalAppData%\Programs\Python\Python314\python.exe"
 if not defined PYTHON_EXE (echo ERROR: Python was not found.& echo Run upgrade.cmd first.& pause& exit /b 1)
-"%PYTHON_EXE%" "%~dp0managed_builder.py" %*
+"%PYTHON_EXE%" "%~dp0managed_builder_runner.py" %*
 set "EXITCODE=%ERRORLEVEL%"
 if not "%EXITCODE%"=="0" pause
 exit /b %EXITCODE%
