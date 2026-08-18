@@ -36,7 +36,7 @@ if not defined FFMPEG_EXE (
  call :install_ffmpeg
  if errorlevel 1 goto :error
  call :find_ffmpeg
- if defined FFMPEG_EXE "%PYTHON_EXE%" "%~dp0dependency_manager.py" mark ffmpeg winget Gyan.FFmpeg
+ if defined FFMPEG_EXE "%PYTHON_EXE%" "%~dp0dependency_manager.py" mark ffmpeg winget !FFMPEG_PACKAGE!
 )
 if not defined FFMPEG_EXE (echo ERROR: FFmpeg could not be located after installation.& goto :error)
 echo FFmpeg found: %FFMPEG_EXE%
@@ -74,6 +74,7 @@ if not errorlevel 1 (winget install --id Python.Python.3.13 --exact --scope user
 exit /b 1
 
 :install_ffmpeg
+set "FFMPEG_PACKAGE="
 where winget >nul 2>nul
 if errorlevel 1 (echo ERROR: WinGet is required to install FFmpeg.& exit /b 1)
 winget install --id Gyan.FFmpeg --exact --silent --accept-package-agreements --accept-source-agreements
