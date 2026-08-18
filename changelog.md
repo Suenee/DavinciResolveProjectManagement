@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.08 - 18.08.2026
+
+- Added opt-in intro/jingle detection based on a reference audio fingerprint instead of DaVinci Resolve Scene Cut Detection.
+- Added `[IntroDetection]` configuration with reference folder `D:\WORK\INTRO`, a 120-second search window, confidence threshold, sample rate, and envelope resolution.
+- Existing-project update dialog can again enable `Vystřihnout znělku` and select a specific reference intro file from the configured folder.
+- Fingerprints use a normalized short-time RMS audio envelope and normalized correlation, making matching tolerant of ordinary level changes and re-encoding.
+- Reference fingerprints are cached under `runtime\intro_fingerprints` and automatically invalidated when the source file changes.
+- Only audio is decoded for matching; video frames are not analyzed.
+- A match below the configured confidence threshold performs no edit and is logged as rejected.
+- A successful match routes the intro audio to the existing clean AUDIO track without Voice Isolation and creates an explicit video edit at the end of the matched intro.
+- Added automatic NumPy and FFmpeg dependency checks/installations to `upgrade.cmd`.
+- New projects remain conservative: fingerprint intro routing is currently triggered only when explicitly selected in the existing-project update workflow.
+
 ## 1.07 - 18.08.2026
 
 - Disabled automatic intro/jingle detection and routing because DaVinci Resolve Scene Cut Detection proved unreliable for this workflow.
