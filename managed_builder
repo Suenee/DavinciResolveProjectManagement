@@ -1,13 +1,40 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse,configparser,importlib.machinery,importlib.util,os,re,shutil,sys,time
+import argparse,configparser,importlib.machinery,importlib.util,os,re,shutil,sys,time,tkinter as tk
 from pathlib import Path
+from tkinter import ttk
 APP=Path(__file__).resolve().parent; CONFIG=APP/'config.ini'; EXAMPLE=APP/'config.example.ini'; DATE=re.compile(r'^\d{8}\s+'); OPTIONAL=('IMAGES','PHOTOS','AUDIO')
 def load_life():
  l=importlib.machinery.SourceFileLoader('life',str(APP/'resolve_lifecycle')); s=importlib.util.spec_from_loader(l.name,l); m=importlib.util.module_from_spec(s); l.exec_module(m); return m
 def cfg():
  if not CONFIG.exists():shutil.copy2(EXAMPLE,CONFIG)
  p=configparser.ConfigParser(); p.read(CONFIG,encoding='utf-8'); return Path(p.get('Paths','ProjectRoot')),p.get('DaVinciResolve','ResolveProjectFolder',fallback='').strip(),p.getint('DaVinciResolve','StartupTimeout',fallback=180),p.getint('DaVinciResolve','AliveTimeout',fallback=900)
+def nodate(name):return DATE.sub('',name,count=1).strip()
+def choose(candidates,query):
+ result=[None]; root=tk.Tk(); root.title('Vyber projekt'); root.resizable(False,False)
+ ttk.Label(root,text=f'Pro „{query}“ jsem našel více možností:').pack(padx=18,pady=(16,8),anchor='w')
+ value=tk.StringVar(value=candidates[0].name); box=ttk.Combobox(root,textvariable=value,values=[x.name for x in candidates],state='readonly',width=58); box.pack(padx=18,pady=4); box.focus_set()
+ buttons=ttk.Frame(root); buttons.pack(pady=(10,16))
+ def ok(*_):
+  result[0]=next((x for x in candidates if x.name.casefold()==value.get().casefold()),None); root.destroy()
+ def cancel(*_):root.destroy()
+ ttk.Button(buttons,text='OK',command=ok,width=12).pack(side='left',padx=5); ttk.Button(buttons,text='Cancel',command=cancel,width=12).pack(side='left',padx=5); root.bind('<Return>',ok); root.bind('<Escape>',cancel); root.protocol('WM_DELETE_WINDOW',cancel); root.mainloop()
+ return result[0]
+def resolve_project(root,query):
+ if not root.is_dir():raise RuntimeError(f'Kořenový adresář neexistuje: {root}')
+ q=query.strip().casefold(); candidates=[x for x in root.iterdir() if x.is_dir()]
+ exact=[x for x in candidates if x.name.casefold()==q]
+ if len(exact)==1:return exact[0]
+ stripped=[x for x in candidates if nodate(x.name).casefold()==q]
+ if len(stripped)==1:return stripped[0]
+ matches=stripped if stripped else [x for x in candidates if q in nodate(x.name).casefold() or q in x.name.casefold()]
+ matches=sorted(matches,key=lambda x:x.name.casefold())
+ if len(matches)==1:return matches[0]
+ if len(matches)>1:
+  selected=choose(matches,query)
+  if selected:return selected
+  raise RuntimeError('Výběr projektu byl zrušen.')
+ raise RuntimeError(f'Nenalezen projekt odpovídající názvu: {query}')
 def dvr():
  modules=Path(os.environ.get('PROGRAMDATA',r'C:\ProgramData'))/'Blackmagic Design'/'DaVinci Resolve'/'Support'/'Developer'/'Scripting'/'Modules'; sys.path.insert(0,str(modules)); import DaVinciResolveScript as d; return d
 def connect():
@@ -33,26 +60,26 @@ def tree(mp,parent,d,life):
   x=mp.ImportMedia(f); n+=len(x) if x else 0
  for c in sorted([x for x in d.iterdir() if x.is_dir()],key=lambda p:p.name.casefold()):n+=tree(mp,b,c,life)
  return n
-def build(name,keep):
- root,folder,timeout,alive=cfg(); src=root/name; shoot=src/'SHOOTING'
- if not src.is_dir():raise RuntimeError(f'Adresář projektu neexistuje: {src}')
+def build(query,keep):
+ root,folder,timeout,alive=cfg(); src=resolve_project(root,query); name=src.name; shoot=src/'SHOOTING'
+ print(f'Project folder: {name}')
  if not shoot.is_dir():raise RuntimeError(f'Chybí SHOOTING: {shoot}')
  life=load_life(); r=ensure(name,timeout); life.put(busy=True,project=name,stage='Zakládám projekt…',keep_mode=keep,alive_timeout=alive)
  try:
   pm=r.GetProjectManager(); pm.GotoRootFolder()
   if folder and not pm.OpenFolder(folder):raise RuntimeError(f'Project Library folder nenalezen: {folder}')
-  if name in pm.GetProjectListInCurrentFolder():raise RuntimeError(f'Projekt už existuje: {name}')
+  projects=pm.GetProjectListInCurrentFolder(); existing=next((x for x in projects if x.casefold()==name.casefold()),None)
+  if existing:raise RuntimeError(f'Projekt už existuje: {existing}')
   pr=pm.CreateProject(name); mp=pr.GetMediaPool(); master=mp.GetRootFolder(); total=tree(mp,master,shoot,life)
   for dn in OPTIONAL:
-   d=src/dn
-   if d.is_dir():total+=tree(mp,master,d,life)
-  life.put(stage='Zakládám timeline…'); tb=mp.AddSubFolder(master,'TIMELINES'); mp.SetCurrentFolder(tb); tn=DATE.sub('',name,count=1).strip() or name; mp.CreateEmptyTimeline(tn); life.put(stage='Ukládám projekt…'); pm.SaveProject(); print(f'DONE: {name} | Timeline: {tn} | Imported media: {total}')
+   d=next((x for x in src.iterdir() if x.is_dir() and x.name.casefold()==dn.casefold()),None)
+   if d:total+=tree(mp,master,d,life)
+  life.put(stage='Zakládám timeline…'); tb=mp.AddSubFolder(master,'TIMELINES'); mp.SetCurrentFolder(tb); tn=nodate(name) or name; mp.CreateEmptyTimeline(tn); life.put(stage='Ukládám projekt…'); pm.SaveProject(); print(f'DONE: {name} | Timeline: {tn} | Imported media: {total}')
  finally:life.put(busy=False,stage='Hotovo')
  owned=life.state(); ours=owned.get('owned') and owned.get('mode')=='headless' and life.pid_running(owned.get('pid'))
  if ours:
   if keep=='none':
-   time.sleep(3)
-   owned=life.state()
+   time.sleep(3); owned=life.state()
    if owned.get('owned') and life.pid_running(owned.get('pid')):life.stop_owned(r)
   elif keep=='alive':life.launch_keeper()
 def main():
