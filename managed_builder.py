@@ -166,15 +166,39 @@ def sync(mp,parent,d,missing,counter,total):
  b=getbin(mp,parent,d.name);mp.SetCurrentFolder(b);sel=[p for p in direct(d) if norm(p) in missing];n=0
  if sel:
   life.put(stage=f'Importuji {d.name}…');x=mp.ImportMedia([str(p) for p in sel]);n+=len(x) if x else 0;counter[0]+=len(sel);PROGRESS.bar(f'Import médií: {d.name}',counter[0],total);PROGRESS.bar_done()
- for c in [x for x in d.iterdir() if x.is_dir()]:
+ for c in sorted([x for x in d.iterdir() if x.is_dir()],key=lambda p:p.name.casefold()):
   if any(norm(p) in missing for p in allfiles(c)):n+=sync(mp,b,c,missing,counter,total)
  return n
+
+def shooting_order(folder):
+ ordered=sorted(direct(folder),key=lambda p:(created(p),p.name.casefold()))
+ for child in sorted([x for x in folder.iterdir() if x.is_dir()],key=lambda p:p.name.casefold()):ordered.extend(shooting_order(child))
+ return ordered
+
+def collect_clip_items(folder,out):
+ try:clips=folder.GetClipList() or []
+ except:clips=[]
+ for clip in clips:
+  try:path=clip.GetClipProperty('File Path')
+  except:path=''
+  if path:out[norm(path)]=clip
+ for sub in subs(folder):collect_clip_items(sub,out)
+
+def create_initial_timeline(mp,master,shoot,timeline_name):
+ life.put(stage='Sestavuji timeline…');shoot_bin=getbin(mp,master,shoot.name);clip_map={};collect_clip_items(shoot_bin,clip_map)
+ ordered_files=shooting_order(shoot);ordered_clips=[clip_map[norm(p)] for p in ordered_files if norm(p) in clip_map];skipped=len(ordered_files)-len(ordered_clips)
+ timeline_bin=getbin(mp,master,'TIMELINES');mp.SetCurrentFolder(timeline_bin)
+ if ordered_clips:timeline=mp.CreateTimelineFromClips(timeline_name,ordered_clips)
+ else:timeline=mp.CreateEmptyTimeline(timeline_name)
+ if timeline is None:raise RuntimeError(f'Nelze vytvořit timeline: {timeline_name}')
+ life.log('TIMELINE_CREATED',timeline=timeline_name,clips=len(ordered_clips),skipped=skipped)
+ print(f'[OK] Timeline: {timeline_name} | SHOOTING klipy: {len(ordered_clips)}'+(f' | přeskočeno: {skipped}' if skipped else ''))
+ return timeline
 
 def apply_deliver(project,src,preset,folder):
  if not preset:return None
  target=(src/folder).resolve();target.mkdir(parents=True,exist_ok=True);life.put(stage='Nastavuji Deliver…')
- presets=project.GetRenderPresetList() or []
- preset_names=[]
+ presets=project.GetRenderPresetList() or [];preset_names=[]
  for item in presets:
   if isinstance(item,str):preset_names.append(item)
   elif isinstance(item,dict):preset_names.extend(str(v) for k,v in item.items() if k.lower() in ('name','presetname'))
@@ -215,8 +239,8 @@ def build(query,keep):
   else:
    pr=pm.CreateProject(name)
    if pr is None:raise RuntimeError(f'Nelze vytvořit projekt: {name}')
-   mp=pr.GetMediaPool();master=mp.GetRootFolder();missing=set(fs);counter=[0];imported=sum(sync(mp,master,d,missing,counter,len(missing)) for d in dirs);tb=getbin(mp,master,'TIMELINES');mp.SetCurrentFolder(tb);tn=nodate(name) or name
-   if mp.CreateEmptyTimeline(tn) is None:raise RuntimeError(f'Nelze vytvořit timeline: {tn}')
+   mp=pr.GetMediaPool();master=mp.GetRootFolder();missing=set(fs);counter=[0];imported=sum(sync(mp,master,d,missing,counter,len(missing)) for d in dirs);tn=nodate(name) or name
+   create_initial_timeline(mp,master,shoot,tn)
    apply_deliver(pr,src,deliver_preset,deliver_folder)
    if not pm.SaveProject():raise RuntimeError('SaveProject() selhal.')
    life.log('PROJECT_CREATED',name=name,imported=imported,timeline=tn);print(f'[OK] Projekt vytvořen: {name} | Timeline: {tn} | Média: {imported}')
