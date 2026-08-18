@@ -6,12 +6,10 @@ import project_update_dialog
 import ui_windows
 
 _base_create_initial_timeline=managed_builder.create_initial_timeline
-_base_center=managed_builder.center
 
 
 def _center_above_resolve(root):
- _base_center(root)
- ui_windows.place_above_resolve(root)
+ ui_windows.center_and_place_above_resolve(root)
 
 
 managed_builder.center=_center_above_resolve
