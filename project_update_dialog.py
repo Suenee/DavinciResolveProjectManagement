@@ -3,6 +3,7 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 import managed_builder as m
+import intro_fingerprint
 
 GREEN='#148a21'
 RED='#d91e18'
@@ -26,53 +27,47 @@ def ask(project_name,status):
  root=tk.Tk();root.title('Aktualizace projektu');root.resizable(False,False)
  bg=root.cget('bg')
  outer=tk.Frame(root,bg=bg,padx=20,pady=12);outer.grid(row=0,column=0)
- title_font=('Segoe UI',11,'bold')
- head_font=('Segoe UI',9,'bold')
- status_font=('Segoe UI Symbol',13,'bold')
- number_font=('Segoe UI',10,'bold')
+ title_font=('Segoe UI',11,'bold');head_font=('Segoe UI',9,'bold');status_font=('Segoe UI Symbol',13,'bold');number_font=('Segoe UI',10,'bold')
 
  tk.Label(outer,text=project_name,font=title_font,bg=bg).grid(row=0,column=0,columnspan=3,pady=(0,9))
  tk.Label(outer,text='Akce',font=head_font,bg=bg).grid(row=1,column=1,sticky='w',padx=(4,24),pady=(0,2))
  tk.Label(outer,text='Stav',font=head_font,bg=bg,width=5,anchor='center').grid(row=1,column=2,pady=(0,2))
 
- repo=tk.BooleanVar(value=status['missing']>0)
- timeline=tk.BooleanVar(value=not status['timeline'])
- voice=tk.BooleanVar(value=True)
- deliver=tk.BooleanVar(value=not status['deliver'])
- vars={'repository':repo,'timeline':timeline,'voice':voice,'deliver':deliver}
- widgets={}
+ intros=intro_fingerprint.list_intros();intro_names=[p.name for p in intros]
+ repo=tk.BooleanVar(value=status['missing']>0);timeline=tk.BooleanVar(value=not status['timeline']);voice=tk.BooleanVar(value=True);intro=tk.BooleanVar(value=False);deliver=tk.BooleanVar(value=not status['deliver']);intro_name=tk.StringVar(value=intro_names[0] if intro_names else '')
+ vars={'repository':repo,'timeline':timeline,'voice':voice,'intro':intro,'deliver':deliver};widgets={}
 
  def status_label(r,ready=None,number=None,tooltip=None):
-  if number is not None:
-   lab=tk.Label(outer,text=str(number),font=number_font,bg=bg,fg=GREEN if number==0 else RED,width=5,anchor='center')
-  else:
-   lab=tk.Label(outer,text='✓' if ready else '✕',font=status_font,bg=bg,fg=GREEN if ready else RED,width=5,anchor='center')
+  if number is not None:lab=tk.Label(outer,text=str(number),font=number_font,bg=bg,fg=GREEN if number==0 else RED,width=5,anchor='center')
+  else:lab=tk.Label(outer,text='✓' if ready else '✕',font=status_font,bg=bg,fg=GREEN if ready else RED,width=5,anchor='center')
   lab.grid(row=r,column=2,sticky='nsew',pady=0)
   if tooltip:ToolTip(lab,tooltip)
 
  def row(r,key,text,indent,ready=None,number=None,tooltip=None):
-  cb=ttk.Checkbutton(outer,variable=vars[key],text=text)
-  cb.grid(row=r,column=1,sticky='w',padx=(indent,24),pady=0)
-  widgets[key]=cb
-  status_label(r,ready=ready,number=number,tooltip=tooltip)
+  cb=ttk.Checkbutton(outer,variable=vars[key],text=text);cb.grid(row=r,column=1,sticky='w',padx=(indent,24),pady=0);widgets[key]=cb;status_label(r,ready=ready,number=number,tooltip=tooltip)
 
  row(2,'repository','Aktualizovat repozitář',0,number=status['missing'],tooltip='Počet souborů, které jsou na disku, ale nejsou v Media Poolu.')
  row(3,'timeline','Vytvořit timeline',0,ready=status['timeline'])
  row(4,'voice','Aktivovat Voice Isolation',24,ready=status['voice'])
- row(5,'deliver','Nastavit DELIVERY',0,ready=status['deliver'])
+ row(5,'intro','Vystřihnout znělku',48,ready=False,tooltip='Znělka se hledá pomocí audio fingerprintu v prvních 2 minutách timeline.')
+ combo=ttk.Combobox(outer,textvariable=intro_name,values=intro_names,state='readonly',width=28)
+ combo.grid(row=6,column=1,sticky='w',padx=(72,24),pady=(1,2))
+ row(7,'deliver','Nastavit DELIVERY',0,ready=status['deliver'])
 
  def deps(*_):
-  widgets['voice'].configure(state='normal' if timeline.get() else 'disabled')
- timeline.trace_add('write',deps);deps()
+  timeline_on=timeline.get();voice_on=voice.get();available=bool(intros)
+  widgets['voice'].configure(state='normal' if timeline_on else 'disabled')
+  widgets['intro'].configure(state='normal' if timeline_on and voice_on and available else 'disabled')
+  combo.configure(state='readonly' if timeline_on and voice_on and intro.get() and available else 'disabled')
+  if not (timeline_on and voice_on and available):intro.set(False)
+ timeline.trace_add('write',deps);voice.trace_add('write',deps);intro.trace_add('write',deps);deps()
 
- buttons=ttk.Frame(outer);buttons.grid(row=6,column=0,columnspan=3,pady=(9,0))
- def ok(*_):result[0]={k:v.get() for k,v in vars.items()};root.destroy()
+ if not intros:ToolTip(widgets['intro'],'V adresáři IntroDetection.Folder nebyla nalezena žádná podporovaná znělka.')
+ buttons=ttk.Frame(outer);buttons.grid(row=8,column=0,columnspan=3,pady=(9,0))
+ def ok(*_):
+  chosen=None
+  if intro.get() and intro_name.get():chosen=next((str(p) for p in intros if p.name==intro_name.get()),None)
+  result[0]={k:v.get() for k,v in vars.items()};result[0]['intro_reference']=chosen;root.destroy()
  def cancel(*_):result[0]=None;root.destroy()
- ttk.Button(buttons,text='OK',command=ok,width=12).pack(side='left',padx=6)
- ttk.Button(buttons,text='Cancel',command=cancel,width=12).pack(side='left',padx=6)
-
- root.bind('<Return>',ok);root.bind('<Escape>',cancel);root.protocol('WM_DELETE_WINDOW',cancel)
- m.center(root)
- root.focus_force()
- root.mainloop()
- return result[0]
+ ttk.Button(buttons,text='OK',command=ok,width=12).pack(side='left',padx=6);ttk.Button(buttons,text='Cancel',command=cancel,width=12).pack(side='left',padx=6)
+ root.bind('<Return>',ok);root.bind('<Escape>',cancel);root.protocol('WM_DELETE_WINDOW',cancel);m.center(root);root.focus_force();root.mainloop();return result[0]
