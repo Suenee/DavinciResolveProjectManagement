@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+import configparser,json,os,subprocess,sys,time
+from datetime import datetime
+from pathlib import Path
+APP_DIR=Path(__file__).resolve().parent; RUNTIME_DIR=APP_DIR/'runtime'; STATE_FILE=RUNTIME_DIR/'state.json'; CONFIG=APP_DIR/'config.ini'; LOG_DIR=RUNTIME_DIR/'logs'
+DEFAULT_EXE=Path(os.environ.get('PROGRAMFILES',r'C:\Program Files'))/'Blackmagic Design'/'DaVinci Resolve'/'Resolve.exe'
+def config():
+ p=configparser.ConfigParser(); p.read(CONFIG,encoding='utf-8'); return p
+def settings():
+ p=config(); raw=p.get('DaVinciResolve','ResolveExe',fallback='').strip(); return Path(raw) if raw else DEFAULT_EXE,p.getint('DaVinciResolve','StartupTimeout',fallback=180),p.getint('DaVinciResolve','AliveTimeout',fallback=900)
+def log_mode():
+ mode=config().get('Logging','Mode',fallback='single').strip().casefold(); return mode if mode in ('off','single','all') else 'single'
+def log(event,**data):
+ mode=log_mode()
+ if mode=='off':return
+ LOG_DIR.mkdir(parents=True,exist_ok=True); path=LOG_DIR/'latest.log' if mode=='single' else LOG_DIR/'history.log'; line=datetime.now().strftime('%d.%m.%Y %H:%M:%S.%f')[:-3]+' '+event
+ if data:line+=' '+json.dumps(data,ensure_ascii=False,default=str)
+ with path.open('a',encoding='utf-8') as f:f.write(line+'\n')
+def begin_log_session(command='',project=''):
+ if log_mode()=='single':
+  LOG_DIR.mkdir(parents=True,exist_ok=True); (LOG_DIR/'latest.log').write_text('',encoding='utf-8')
+ log('SESSION_START',computer=os.environ.get('COMPUTERNAME','UNKNOWN'),command=command,project=project)
+def state():
+ try:return json.loads(STATE_FILE.read_text(encoding='utf-8'))
+ except:return {}
+def put(**v):
+ RUNTIME_DIR.mkdir(parents=True,exist_ok=True); s=state(); s.update(v); s['updated']=time.time(); STATE_FILE.write_text(json.dumps(s,ensure_ascii=False,indent=2),encoding='utf-8')
+def clear():
+ try:STATE_FILE.unlink()
+ except FileNotFoundError:pass
+def pid_running(pid):
+ if not pid:return False
+ r=subprocess.run(['tasklist','/FI',f'PID eq {pid}','/NH'],capture_output=True,text=True,creationflags=subprocess.CREATE_NO_WINDOW); return str(pid) in r.stdout
+def any_resolve():
+ r=subprocess.run(['tasklist','/FI','IMAGENAME eq Resolve.exe','/NH'],capture_output=True,text=True,creationflags=subprocess.CREATE_NO_WINDOW); return 'Resolve.exe' in r.stdout
+def start_headless(project=''):
+ exe,_,_=settings()
+ if not exe.exists():raise RuntimeError(f'Resolve.exe not found: {exe}')
+ p=subprocess.Popen([str(exe),'-nogui'],cwd=str(exe.parent),creationflags=subprocess.CREATE_NO_WINDOW); put(owned=True,mode='headless',pid=p.pid,busy=False,project=project,stage='Spouštím DaVinci Resolve…',keep_mode='none'); log('HEADLESS_START',pid=p.pid,project=project); return p.pid
+def start_gui():
+ exe,_,_=settings()
+ if not exe.exists():raise RuntimeError(f'Resolve.exe not found: {exe}')
+ p=subprocess.Popen([str(exe)],cwd=str(exe.parent)); log('GUI_START',pid=p.pid)
+def stop_owned(resolve=None):
+ s=state(); pid=s.get('pid')
+ if not(s.get('owned') and s.get('mode')=='headless'):return False
+ if resolve is not None:
+  try:log('HEADLESS_QUIT_API',pid=pid); resolve.Quit()
+  finally:clear()
+  return True
+ return force_stop_owned()
+def force_stop_owned(grace=8):
+ s=state(); pid=s.get('pid')
+ if not(s.get('owned') and s.get('mode')=='headless' and pid):return False
+ if not pid_running(pid):log('OWNED_PID_ALREADY_GONE',pid=pid); clear(); return True
+ log('OWNED_PID_TERMINATE',pid=pid); subprocess.run(['taskkill','/PID',str(pid)],capture_output=True,creationflags=subprocess.CREATE_NO_WINDOW); end=time.time()+grace
+ while time.time()<end:
+  if not pid_running(pid):log('OWNED_PID_STOPPED',pid=pid,forced=False); clear(); return True
+  time.sleep(.25)
+ log('OWNED_PID_FORCE_KILL',pid=pid); subprocess.run(['taskkill','/F','/PID',str(pid)],capture_output=True,creationflags=subprocess.CREATE_NO_WINDOW); end=time.time()+5
+ while time.time()<end:
+  if not pid_running(pid):log('OWNED_PID_STOPPED',pid=pid,forced=True); clear(); return True
+  time.sleep(.25)
+ log('OWNED_PID_KILL_FAILED',pid=pid); return False
+def launch_keeper():subprocess.Popen([sys.executable,str(Path(__file__)),'--idle-keeper'],cwd=str(APP_DIR),creationflags=subprocess.CREATE_NO_WINDOW)
+def get_resolve():
+ modules=Path(os.environ.get('PROGRAMDATA',r'C:\ProgramData'))/'Blackmagic Design'/'DaVinci Resolve'/'Support'/'Developer'/'Scripting'/'Modules'
+ if str(modules) not in sys.path:sys.path.insert(0,str(modules))
+ try:
+  import DaVinciResolveScript as d; return d.scriptapp('Resolve')
+ except Exception:return None
+def keeper():
+ s=state()
+ if not(s.get('owned') and s.get('mode')=='headless'):return
+ _,_,default_timeout=settings(); timeout=int(s.get('alive_timeout') or default_timeout); deadline=time.time()+timeout
+ while time.time()<deadline:
+  s=state()
+  if not(s.get('owned') and s.get('mode')=='headless'):return
+  if s.get('keep_mode')=='persistent':return
+  if s.get('busy'):deadline=time.time()+timeout
+  time.sleep(2)
+ r=get_resolve(); stop_owned(r) if r is not None else force_stop_owned()
+if __name__=='__main__' and len(sys.argv)>1 and sys.argv[1]=='--idle-keeper':keeper()
