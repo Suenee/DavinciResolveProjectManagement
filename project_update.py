@@ -6,7 +6,6 @@ from tkinter import ttk
 import managed_builder as m
 import resolve_lifecycle as life
 import timeline_audio
-import intro_detection
 
 _CREATOR=None
 
@@ -46,15 +45,14 @@ def _status(project,base,missing,src,deliver_folder,shoot):
  timelines=_matching_timelines(project,base)
  timeline_ready=bool(timelines)
  voice_ready=any(timeline_audio.is_prepared(t) for t in timelines)
- intro_ready=any(intro_detection.is_prepared(t) for t in timelines)
- return {'missing':len(missing),'timeline':timeline_ready,'voice':voice_ready,'intro':intro_ready,
-         'deliver':_deliver_ready(project,src,deliver_folder),'has_set':intro_detection.has_set_folders(shoot)}
+ return {'missing':len(missing),'timeline':timeline_ready,'voice':voice_ready,
+         'deliver':_deliver_ready(project,src,deliver_folder)}
 
 class ToolTip:
  def __init__(self,widget,text):self.widget=widget;self.text=text;self.tip=None;widget.bind('<Enter>',self.show);widget.bind('<Leave>',self.hide)
  def show(self,*_):
   if self.tip:return
-  x=self.widget.winfo_rootx()+20;y=self.widget.winfo_rooty()+22;self.tip=tk.Toplevel(self.widget);self.tip.wm_overrideredirect(True);self.tip.wm_geometry(f'+{x}+{y}')
+  x=self.widget.winfo_rootx()+20;y=self.widget.winfo_rooty()+22;self.tip=tk.Toplevel(self.widget);self.tip.wm_overrideredirect(True);self.tip.wm_geometry(f'{x:+d}{y:+d}')
   ttk.Label(self.tip,text=self.text,padding=(7,4)).pack()
  def hide(self,*_):
   if self.tip:self.tip.destroy();self.tip=None
@@ -63,8 +61,8 @@ def ask(project_name,status):
  result=[None];root=tk.Tk();root.title('Aktualizace projektu');root.resizable(False,False)
  outer=ttk.Frame(root,padding=(22,18,22,16));outer.grid(row=0,column=0);ttk.Label(outer,text=f'Projekt {project_name} již existuje. Chceš jej aktualizovat?').grid(row=0,column=0,columnspan=3,sticky='w',pady=(0,14))
  ttk.Label(outer,text='Akce').grid(row=1,column=1,sticky='w',padx=(4,25));ttk.Label(outer,text='Stav').grid(row=1,column=2,sticky='e')
- repo=tk.BooleanVar(value=status['missing']>0);timeline=tk.BooleanVar(value=not status['timeline']);voice=tk.BooleanVar(value=True);intro=tk.BooleanVar(value=not status['has_set']);deliver=tk.BooleanVar(value=not status['deliver'])
- vars={'repository':repo,'timeline':timeline,'voice':voice,'intro':intro,'deliver':deliver};widgets={}
+ repo=tk.BooleanVar(value=status['missing']>0);timeline=tk.BooleanVar(value=not status['timeline']);voice=tk.BooleanVar(value=True);deliver=tk.BooleanVar(value=not status['deliver'])
+ vars={'repository':repo,'timeline':timeline,'voice':voice,'deliver':deliver};widgets={}
  def row(r,key,text,indent,status_text,tooltip=None):
   cb=ttk.Checkbutton(outer,variable=vars[key],text=text);cb.grid(row=r,column=1,sticky='w',padx=(indent,25),pady=3);widgets[key]=cb
   lab=ttk.Label(outer,text=status_text,anchor='e',width=4);lab.grid(row=r,column=2,sticky='e',pady=3)
@@ -72,26 +70,19 @@ def ask(project_name,status):
  row(2,'repository','Aktualizovat repozitář',0,str(status['missing']),'Počet souborů, které jsou na disku, ale nejsou v Media Poolu.')
  row(3,'timeline','Vytvořit timeline',0,'✓' if status['timeline'] else '✕')
  row(4,'voice','Aktivovat Voice Isolation',24,'✓' if status['voice'] else '✕')
- row(5,'intro','Vystřihnout znělku',48,'✓' if status['intro'] else '✕','Automatická detekce znělky je dostupná pouze pro SHOOTING bez SET xx.' if status['has_set'] else None)
- row(6,'deliver','Nastavit DELIVERY',0,'✓' if status['deliver'] else '✕')
- def deps(*_):
-  widgets['voice'].configure(state='normal' if timeline.get() else 'disabled')
-  widgets['intro'].configure(state='normal' if timeline.get() and voice.get() and not status['has_set'] else 'disabled')
- timeline.trace_add('write',deps);voice.trace_add('write',deps);deps()
- buttons=ttk.Frame(outer);buttons.grid(row=7,column=0,columnspan=3,pady=(16,0))
+ row(5,'deliver','Nastavit DELIVERY',0,'✓' if status['deliver'] else '✕')
+ def deps(*_):widgets['voice'].configure(state='normal' if timeline.get() else 'disabled')
+ timeline.trace_add('write',deps);deps()
+ buttons=ttk.Frame(outer);buttons.grid(row=6,column=0,columnspan=3,pady=(16,0))
  def ok(*_):result[0]={k:v.get() for k,v in vars.items()};root.destroy()
  def cancel(*_):result[0]=None;root.destroy()
  ttk.Button(buttons,text='OK',command=ok,width=13).pack(side='left',padx=6);ttk.Button(buttons,text='Cancel',command=cancel,width=13).pack(side='left',padx=6)
  root.bind('<Return>',ok);root.bind('<Escape>',cancel);root.protocol('WM_DELETE_WINDOW',cancel);m.center(root);root.mainloop();return result[0]
 
-def _create_timeline(mp,master,shoot,name,voice,intro):
+def _create_timeline(mp,master,shoot,name,voice):
  if _CREATOR is None:raise RuntimeError('Timeline creator není inicializován.')
  timeline=_CREATOR(mp,master,shoot,name)
- if voice:
-  timeline=timeline_audio.configure(timeline)
-  if intro:
-   timeline=intro_detection.configure(mp,timeline,shoot)
-   timeline=timeline_audio.configure(timeline)
+ if voice:timeline=timeline_audio.configure(timeline)
  return timeline
 
 def build(query,keep):
@@ -107,7 +98,7 @@ def build(query,keep):
    pr=pm.CreateProject(name)
    if pr is None:raise RuntimeError(f'Nelze vytvořit projekt: {name}')
    mp=pr.GetMediaPool();master=mp.GetRootFolder();missing=set(fs);counter=[0];imported=sum(m.sync(mp,master,d,missing,counter,len(missing)) for d in dirs);tn=m.nodate(name) or name
-   _create_timeline(mp,master,shoot,tn,True,not intro_detection.has_set_folders(shoot));m.apply_deliver(pr,src,deliver_preset,deliver_folder)
+   _create_timeline(mp,master,shoot,tn,True);m.apply_deliver(pr,src,deliver_preset,deliver_folder)
    if not pm.SaveProject():raise RuntimeError('SaveProject() selhal.')
    life.log('PROJECT_CREATED',name=name,imported=imported,timeline=tn);print(f'[OK] Projekt vytvořen: {name} | Timeline: {tn} | Média: {imported}')
   else:
@@ -122,7 +113,7 @@ def build(query,keep):
      counter=[0];imported=sum(m.sync(mp,master,d,missing,counter,len(missing)) for d in dirs if any(m.norm(p) in missing for p in m.allfiles(d)));life.log('SYNC_DONE',imported=imported);print(f'[OK] Doplněno médií: {imported}');changed=changed or imported>0
     else:print('[OK] Repozitář je aktuální.')
    if actions['timeline']:
-    tn=_unique_timeline_name(pr,base);_create_timeline(mp,master,shoot,tn,actions['voice'],actions['intro']);life.log('TIMELINE_UPDATE_CREATED',timeline=tn,voice=actions['voice'],intro=actions['intro']);print(f'[OK] Vytvořena timeline: {tn}');changed=True
+    tn=_unique_timeline_name(pr,base);_create_timeline(mp,master,shoot,tn,actions['voice']);life.log('TIMELINE_UPDATE_CREATED',timeline=tn,voice=actions['voice']);print(f'[OK] Vytvořena timeline: {tn}');changed=True
    if actions['deliver']:
     m.apply_deliver(pr,src,deliver_preset,deliver_folder);changed=True
    if changed and not pm.SaveProject():raise RuntimeError('SaveProject() selhal.')
