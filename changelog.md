@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.07 - 18.08.2026
+
+- Disabled automatic intro/jingle detection and routing because DaVinci Resolve Scene Cut Detection proved unreliable for this workflow.
+- New timelines now only enable Voice Isolation on source audio tracks and add one empty clean audio track without Voice Isolation.
+- Removed the `Vystřihnout znělku` option from the existing-project update dialog so the unreliable feature cannot be triggered accidentally.
+- Kept the experimental intro-detection module in the repository for reference, but it is no longer part of the runtime path.
+
 ## 1.06 - 18.08.2026
 
 - Fixed multi-monitor positioning for application dialogs when DaVinci Resolve is on a monitor with negative virtual-screen coordinates.
