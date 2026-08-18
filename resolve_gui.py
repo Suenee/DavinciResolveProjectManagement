@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import importlib.machinery,importlib.util,os,sys,time,tkinter as tk
+import os,sys,time,tkinter as tk
 from pathlib import Path
+import resolve_lifecycle as life
 APP=Path(__file__).resolve().parent
-loader=importlib.machinery.SourceFileLoader('life',str(APP/'resolve_lifecycle')); spec=importlib.util.spec_from_loader(loader.name,loader); life=importlib.util.module_from_spec(spec); loader.exec_module(life)
 def get_resolve():
  modules=Path(os.environ.get('PROGRAMDATA',r'C:\ProgramData'))/'Blackmagic Design'/'DaVinci Resolve'/'Support'/'Developer'/'Scripting'/'Modules'; sys.path.insert(0,str(modules))
  try:
