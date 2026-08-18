@@ -12,23 +12,14 @@ if not defined PYTHON_EXE (echo ERROR: Python could not be located.& goto :error
 echo Python found: %PYTHON_EXE%
 "%PYTHON_EXE%" --version
 if errorlevel 1 goto :error
-if not exist "config.ini" (
- copy /y "config.example.ini" "config.ini" >nul
- echo Created config.ini from config.example.ini.
-) else (
- echo Keeping existing config.ini.
- findstr /B /I /C:"[Logging]" "config.ini" >nul 2>nul
- if errorlevel 1 (
-  >>"config.ini" echo.
-  >>"config.ini" echo [Logging]
-  >>"config.ini" echo Mode = single
-  echo Added default Logging mode: single.
- )
-)
+if not exist "config.example.ini" (echo ERROR: config.example.ini is missing.& goto :error)
+echo Migrating configuration...
+"%PYTHON_EXE%" "%~dp0config_migrate"
+if errorlevel 1 goto :error
 set "DVR_MODULE=%PROGRAMDATA%\Blackmagic Design\DaVinci Resolve\Support\Developer\Scripting\Modules\DaVinciResolveScript.py"
 if exist "%DVR_MODULE%" (echo DaVinci Resolve scripting module found.) else (echo WARNING: DaVinci Resolve scripting module was not found at:& echo   %DVR_MODULE%)
 echo Checking Python sources...
-"%PYTHON_EXE%" -m py_compile "resolve_project_builder.py" "managed_builder" "resolve_lifecycle" "resolve_gui.py"
+"%PYTHON_EXE%" -m py_compile "resolve_project_builder.py" "managed_builder" "resolve_lifecycle" "resolve_gui.py" "config_migrate"
 if errorlevel 1 goto :error
 if not exist "runtime" mkdir "runtime" >nul 2>nul
 if not exist "runtime\logs" mkdir "runtime\logs" >nul 2>nul
