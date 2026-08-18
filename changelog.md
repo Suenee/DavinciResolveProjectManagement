@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.04 - 18.08.2026
+
+- Redesigned the existing-project update dialog for faster visual scanning.
+- The window title remains `Aktualizace projektu`; the body now shows only the project name as a bold heading.
+- Repository count is centered in the status column and keeps its explanatory tooltip.
+- Readiness diagnostics now use larger colored symbols: green `✓` for prepared and red `✕` for not prepared.
+- Added a shared Windows UI helper that detects the visible DaVinci Resolve window and makes application dialogs owned by it, keeping them above Resolve without global always-on-top behavior.
+- All dialogs routed through the common centering helper inherit the Resolve-relative Z-order behavior.
+
 ## 1.03 - 18.08.2026
 
 - Added a single update checklist dialog for existing Resolve projects.
