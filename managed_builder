@@ -1,10 +1,30 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse,configparser,importlib.machinery,importlib.util,os,re,shutil,sys,time,tkinter as tk
+import argparse,configparser,importlib.machinery,importlib.util,os,re,shutil,sys,time,tkinter as tk,threading,itertools
 from pathlib import Path
 from tkinter import ttk
 from datetime import datetime
 APP=Path(__file__).resolve().parent; CONFIG=APP/'config.ini'; EXAMPLE=APP/'config.example.ini'; DATE=re.compile(r'^\d{8}\s+'); OPTIONAL=('IMAGES','PHOTOS','AUDIO')
+class ConsoleProgress:
+ def __init__(self):self.stop_event=None; self.thread=None; self.started=0; self.message=''
+ def start(self,message,maximum=None):
+  self.stop(); self.message=message; self.started=time.time(); self.stop_event=threading.Event()
+  def run():
+   spin=itertools.cycle('|/-\\')
+   while not self.stop_event.wait(.12):
+    elapsed=int(time.time()-self.started); suffix=f'{elapsed:02d} s' if maximum is None else f'{elapsed} s / max {maximum} s'; sys.stdout.write(f'\r[{next(spin)}] {self.message}  {suffix}   '); sys.stdout.flush()
+  self.thread=threading.Thread(target=run,daemon=True); self.thread.start()
+ def stop(self,done=None):
+  if self.stop_event:
+   self.stop_event.set()
+   if self.thread:self.thread.join(.5)
+   elapsed=int(time.time()-self.started); sys.stdout.write('\r'+' '*100+'\r'); sys.stdout.flush()
+   if done:print(f'[OK] {done} ({elapsed} s)')
+  self.stop_event=None; self.thread=None
+ def bar(self,message,current,total):
+  width=24; ratio=current/total if total else 1; filled=min(width,int(width*ratio)); bar='█'*filled+'░'*(width-filled); sys.stdout.write(f'\r[{bar}] {ratio*100:3.0f}%  {message}  {current}/{total}   '); sys.stdout.flush()
+ def bar_done(self):sys.stdout.write('\n'); sys.stdout.flush()
+PROGRESS=ConsoleProgress()
 def load_life():
  l=importlib.machinery.SourceFileLoader('life',str(APP/'resolve_lifecycle')); s=importlib.util.spec_from_loader(l.name,l); m=importlib.util.module_from_spec(s); l.exec_module(m); return m
 def cfg():
@@ -15,29 +35,18 @@ def created(p):
  try:return p.stat().st_ctime
  except OSError:return 0
 def choose(candidates,query):
- candidates=sorted(candidates,key=created,reverse=True); result=[None]; root=tk.Tk(); root.title('Vyber projekt'); root.resizable(False,False)
- outer=ttk.Frame(root,padding=(20,16,20,14)); outer.pack(fill='both',expand=True)
- ttk.Label(outer,text=f'Pro „{query}“ jsem našel více možností:').pack(anchor='w',pady=(0,10))
- frame=ttk.Frame(outer); frame.pack(fill='both',expand=True)
- tree=ttk.Treeview(frame,columns=('name','created'),show='headings',height=min(max(len(candidates),5),10),selectmode='browse')
- tree.heading('name',text='Projekt',anchor='w'); tree.heading('created',text='Vytvořeno',anchor='e'); tree.column('name',width=365,anchor='w',stretch=False); tree.column('created',width=155,anchor='e',stretch=False)
- scroll=ttk.Scrollbar(frame,orient='vertical',command=tree.yview); tree.configure(yscrollcommand=scroll.set); tree.pack(side='left',fill='both',expand=True); scroll.pack(side='right',fill='y')
- style=ttk.Style(root); style.configure('Project.Treeview',rowheight=29); tree.configure(style='Project.Treeview')
+ candidates=sorted(candidates,key=created,reverse=True); result=[None]; root=tk.Tk(); root.title('Vyber projekt'); root.resizable(False,False); outer=ttk.Frame(root,padding=(20,16,20,14)); outer.pack(fill='both',expand=True); ttk.Label(outer,text=f'Pro „{query}“ jsem našel více možností:').pack(anchor='w',pady=(0,10)); frame=ttk.Frame(outer); frame.pack(fill='both',expand=True); tree=ttk.Treeview(frame,columns=('name','created'),show='headings',height=min(max(len(candidates),5),10),selectmode='browse'); tree.heading('name',text='Projekt',anchor='w'); tree.heading('created',text='Vytvořeno',anchor='e'); tree.column('name',width=365,anchor='w',stretch=False); tree.column('created',width=155,anchor='e',stretch=False); scroll=ttk.Scrollbar(frame,orient='vertical',command=tree.yview); tree.configure(yscrollcommand=scroll.set); tree.pack(side='left',fill='both',expand=True); scroll.pack(side='right',fill='y'); style=ttk.Style(root); style.configure('Project.Treeview',rowheight=29); tree.configure(style='Project.Treeview')
  for i,p in enumerate(candidates):
-  stamp=datetime.fromtimestamp(created(p)).strftime('%d.%m.%Y %H:%M:%S') if created(p) else ''; tree.insert('', 'end', iid=str(i), values=(p.name,stamp))
+  stamp=datetime.fromtimestamp(created(p)).strftime('%d.%m.%Y %H:%M:%S') if created(p) else ''; tree.insert('','end',iid=str(i),values=(p.name,stamp))
  if candidates:tree.selection_set('0'); tree.focus('0'); tree.see('0')
  buttons=ttk.Frame(outer); buttons.pack(pady=(14,0))
  def ok(*_):
-  sel=tree.selection()
-  if sel:result[0]=candidates[int(sel[0])]
-  root.destroy()
+  sel=tree.selection(); result[0]=candidates[int(sel[0])] if sel else None; root.destroy()
  def cancel(*_):root.destroy()
- ttk.Button(buttons,text='OK',command=ok,width=13).pack(side='left',padx=6); ttk.Button(buttons,text='Cancel',command=cancel,width=13).pack(side='left',padx=6)
- tree.bind('<Double-1>',ok); root.bind('<Return>',ok); root.bind('<Escape>',cancel); root.protocol('WM_DELETE_WINDOW',cancel); root.update_idletasks(); w=root.winfo_width(); h=root.winfo_height(); sw=root.winfo_screenwidth(); sh=root.winfo_screenheight(); root.geometry(f'{w}x{h}+{max(0,(sw-w)//2)}+{max(0,(sh-h)//2)}'); tree.focus_set(); root.mainloop(); return result[0]
+ ttk.Button(buttons,text='OK',command=ok,width=13).pack(side='left',padx=6); ttk.Button(buttons,text='Cancel',command=cancel,width=13).pack(side='left',padx=6); tree.bind('<Double-1>',ok); root.bind('<Return>',ok); root.bind('<Escape>',cancel); root.protocol('WM_DELETE_WINDOW',cancel); root.update_idletasks(); w=root.winfo_width(); h=root.winfo_height(); root.geometry(f'{w}x{h}+{max(0,(root.winfo_screenwidth()-w)//2)}+{max(0,(root.winfo_screenheight()-h)//2)}'); tree.focus_set(); root.mainloop(); return result[0]
 def resolve_project(root,query):
  if not root.is_dir():raise RuntimeError(f'Kořenový adresář neexistuje: {root}')
- q=query.strip().casefold(); candidates=[x for x in root.iterdir() if x.is_dir()]
- exact=[x for x in candidates if x.name.casefold()==q]
+ q=query.strip().casefold(); candidates=[x for x in root.iterdir() if x.is_dir()]; exact=[x for x in candidates if x.name.casefold()==q]
  if len(exact)==1:return exact[0]
  stripped=[x for x in candidates if nodate(x.name).casefold()==q]
  if len(stripped)==1:return stripped[0]
@@ -58,45 +67,51 @@ def ensure(name,timeout):
  if r:return r
  life=load_life()
  if life.any_resolve():raise RuntimeError('Resolve.exe běží, ale scripting API není dostupné.')
- life.start_headless(name); end=time.time()+timeout
+ PROGRESS.start('Spouštím DaVinci Resolve / čekám na scripting API...',timeout); life.start_headless(name); end=time.time()+timeout
  while time.time()<end:
   r=connect()
-  if r:return r
+  if r:PROGRESS.stop('DaVinci Resolve připraven'); return r
   time.sleep(2)
- raise RuntimeError(f'Resolve se nepřihlásil k API do {timeout} s.')
+ PROGRESS.stop(); raise RuntimeError(f'Resolve se nepřihlásil k API do {timeout} s.')
 def files(d):return [str(x.resolve()) for x in sorted(d.iterdir(),key=lambda p:p.name.casefold()) if x.is_file()]
-def tree_import(mp,parent,d,life):
+def count_files(d):
+ try:return sum(1 for x in d.rglob('*') if x.is_file())
+ except OSError:return 0
+def tree_import(mp,parent,d,life,counter,total):
  b=mp.AddSubFolder(parent,d.name)
  if b is None:raise RuntimeError(f'Nelze vytvořit BIN {d.name}')
- mp.SetCurrentFolder(b); life.put(stage=f'Importuji {d.name}…'); n=0; f=files(d)
+ mp.SetCurrentFolder(b); life.put(stage=f'Importuji {d.name}…'); f=files(d); n=0
  if f:
-  x=mp.ImportMedia(f); n+=len(x) if x else 0
- for c in sorted([x for x in d.iterdir() if x.is_dir()],key=lambda p:p.name.casefold()):n+=tree_import(mp,b,c,life)
+  PROGRESS.start(f'Importuji {d.name}...'); x=mp.ImportMedia(f); PROGRESS.stop(); n+=len(x) if x else 0; counter[0]+=len(f); PROGRESS.bar(f'Import médií: {d.name}',counter[0],total); PROGRESS.bar_done()
+ for c in sorted([x for x in d.iterdir() if x.is_dir()],key=lambda p:p.name.casefold()):n+=tree_import(mp,b,c,life,counter,total)
  return n
+def phase(message,func):
+ PROGRESS.start(message)
+ try:return func()
+ finally:PROGRESS.stop(message.replace('...','')+' hotovo')
 def build(query,keep):
- root,folder,timeout,alive=cfg(); src=resolve_project(root,query); name=src.name; shoot=next((x for x in src.iterdir() if x.is_dir() and x.name.casefold()=='shooting'),src/'SHOOTING')
- print(f'Project folder: {name}')
+ started_all=time.time(); root,folder,timeout,alive=cfg(); src=resolve_project(root,query); name=src.name; shoot=next((x for x in src.iterdir() if x.is_dir() and x.name.casefold()=='shooting'),src/'SHOOTING'); print(f'Project folder: {name}')
  if not shoot.is_dir():raise RuntimeError(f'Chybí SHOOTING: {shoot}')
- life=load_life(); r=ensure(name,timeout); life.put(busy=True,project=name,stage='Zakládám projekt…',keep_mode=keep,alive_timeout=alive)
+ media_dirs=[shoot]+[d for dn in OPTIONAL for d in src.iterdir() if d.is_dir() and d.name.casefold()==dn.casefold()]; media_total=sum(count_files(d) for d in media_dirs); counter=[0]; life=load_life(); r=ensure(name,timeout); life.put(busy=True,project=name,stage='Zakládám projekt…',keep_mode=keep,alive_timeout=alive)
  try:
   pm=r.GetProjectManager(); pm.GotoRootFolder()
   if folder and not pm.OpenFolder(folder):raise RuntimeError(f'Project Library folder nenalezen: {folder}')
   projects=pm.GetProjectListInCurrentFolder(); existing=next((x for x in projects if x.casefold()==name.casefold()),None)
   if existing:raise RuntimeError(f'Projekt už existuje: {existing}')
-  pr=pm.CreateProject(name); mp=pr.GetMediaPool(); master=mp.GetRootFolder(); total=tree_import(mp,master,shoot,life)
-  for dn in OPTIONAL:
-   d=next((x for x in src.iterdir() if x.is_dir() and x.name.casefold()==dn.casefold()),None)
-   if d:total+=tree_import(mp,master,d,life)
-  life.put(stage='Zakládám timeline…'); tb=mp.AddSubFolder(master,'TIMELINES'); mp.SetCurrentFolder(tb); tn=nodate(name) or name; mp.CreateEmptyTimeline(tn); life.put(stage='Ukládám projekt…'); pm.SaveProject(); print(f'DONE: {name} | Timeline: {tn} | Imported media: {total}')
- finally:life.put(busy=False,stage='Hotovo')
+  PROGRESS.start('Zakládám projekt...'); pr=pm.CreateProject(name); PROGRESS.stop('Projekt založen'); mp=pr.GetMediaPool(); master=mp.GetRootFolder(); total=tree_import(mp,master,shoot,life,counter,media_total)
+  for d in media_dirs[1:]:total+=tree_import(mp,master,d,life,counter,media_total)
+  life.put(stage='Zakládám timeline…'); PROGRESS.start('Zakládám timeline...'); tb=mp.AddSubFolder(master,'TIMELINES'); mp.SetCurrentFolder(tb); tn=nodate(name) or name; mp.CreateEmptyTimeline(tn); PROGRESS.stop('Timeline založena'); life.put(stage='Ukládám projekt…'); PROGRESS.start('Ukládám projekt...'); pm.SaveProject(); PROGRESS.stop('Projekt uložen'); print(f'[OK] Hotovo za {int(time.time()-started_all)} s | {name} | Timeline: {tn} | Imported media: {total}')
+ finally:PROGRESS.stop(); life.put(busy=False,stage='Hotovo')
  owned=life.state(); ours=owned.get('owned') and owned.get('mode')=='headless' and life.pid_running(owned.get('pid'))
  if ours:
   if keep=='none':
-   time.sleep(3); owned=life.state()
+   PROGRESS.start('Ukončuji headless DaVinci Resolve...'); time.sleep(3); owned=life.state()
    if owned.get('owned') and life.pid_running(owned.get('pid')):life.stop_owned(r)
-  elif keep=='alive':life.launch_keeper()
+   PROGRESS.stop('Headless DaVinci Resolve ukončen')
+  elif keep=='alive':life.launch_keeper(); print(f'[OK] Resolve zůstává připravený --alive (idle timeout {alive} s).')
+  else:print('[OK] Resolve zůstává připravený --persistent.')
 def main():
  p=argparse.ArgumentParser(); p.add_argument('project'); g=p.add_mutually_exclusive_group(); g.add_argument('--alive',action='store_true'); g.add_argument('--persistent',action='store_true'); a=p.parse_args(); keep='persistent' if a.persistent else 'alive' if a.alive else 'none'
  try:build(a.project,keep); return 0
- except Exception as e:print('ERROR:',e,file=sys.stderr); return 1
+ except Exception as e:PROGRESS.stop(); print('ERROR:',e,file=sys.stderr); return 1
 if __name__=='__main__':raise SystemExit(main())
