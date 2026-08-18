@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.05 - 18.08.2026
+
+- Restored compact vertical spacing in the existing-project update dialog to match the approved reference layout.
+- Kept the bold project heading, centered repository count, and enlarged green/red readiness symbols.
+- Dialogs are now centered relative to the visible DaVinci Resolve GUI window instead of the entire desktop.
+- The application window remains owned by Resolve for correct Z-order without global always-on-top behavior.
+- Minimized or headless Resolve instances are ignored for GUI positioning; screen centering is used as fallback.
+
 ## 1.04 - 18.08.2026
 
 - Redesigned the existing-project update dialog for faster visual scanning.
