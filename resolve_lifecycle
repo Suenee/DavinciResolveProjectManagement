@@ -38,6 +38,13 @@ def stop_owned(resolve=None):
   finally:clear()
   return True
  return False
+def force_stop_owned():
+ s=state(); pid=s.get('pid')
+ if not(s.get('owned') and s.get('mode')=='headless' and pid):return False
+ if pid_running(pid):
+  subprocess.run(['taskkill','/PID',str(pid)],capture_output=True,creationflags=subprocess.CREATE_NO_WINDOW); time.sleep(2)
+  if pid_running(pid):subprocess.run(['taskkill','/F','/PID',str(pid)],capture_output=True,creationflags=subprocess.CREATE_NO_WINDOW)
+ clear(); return True
 def launch_keeper():
  subprocess.Popen([sys.executable,str(Path(__file__)),'--idle-keeper'],cwd=str(APP_DIR),creationflags=subprocess.CREATE_NO_WINDOW)
 def get_resolve():
@@ -59,4 +66,5 @@ def keeper():
   time.sleep(2)
  r=get_resolve()
  if r is not None:stop_owned(r)
+ else:force_stop_owned()
 if __name__=='__main__' and len(sys.argv)>1 and sys.argv[1]=='--idle-keeper':keeper()
