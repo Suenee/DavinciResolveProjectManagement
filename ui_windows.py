@@ -45,25 +45,51 @@ def find_resolve_window():
     def callback(hwnd, _):
         if not user32.IsWindowVisible(hwnd):
             return True
+        if user32.IsIconic(hwnd):
+            return True
         pid = wintypes.DWORD()
         user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
         if _process_name(pid.value).casefold() == 'resolve.exe':
-            found.append(hwnd)
-            return False
+            rect = wintypes.RECT()
+            if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+                width = rect.right - rect.left
+                height = rect.bottom - rect.top
+                if width > 400 and height > 300:
+                    found.append(hwnd)
+                    return False
         return True
 
     user32.EnumWindows(callback, 0)
     return found[0] if found else None
 
 
-def place_above_resolve(root):
+def center_over_resolve(root):
+    """Center a Tk top-level over the visible DaVinci Resolve window, or screen if Resolve GUI is absent."""
+    root.update_idletasks()
+    width = root.winfo_width()
+    height = root.winfo_height()
+    resolve_hwnd = find_resolve_window() if os.name == 'nt' else None
+    if resolve_hwnd:
+        rect = wintypes.RECT()
+        if user32.GetWindowRect(resolve_hwnd, ctypes.byref(rect)):
+            x = rect.left + max(0, ((rect.right - rect.left) - width) // 2)
+            y = rect.top + max(0, ((rect.bottom - rect.top) - height) // 2)
+            root.geometry(f'{width}x{height}+{x}+{y}')
+            return resolve_hwnd
+    x = max(0, (root.winfo_screenwidth() - width) // 2)
+    y = max(0, (root.winfo_screenheight() - height) // 2)
+    root.geometry(f'{width}x{height}+{x}+{y}')
+    return None
+
+
+def place_above_resolve(root, resolve_hwnd=None):
     """Keep a Tk top-level above visible DaVinci Resolve without global always-on-top."""
     try:
         root.update_idletasks()
         root.lift()
         if os.name != 'nt':
             return False
-        resolve_hwnd = find_resolve_window()
+        resolve_hwnd = resolve_hwnd or find_resolve_window()
         if not resolve_hwnd:
             return False
         hwnd = int(root.winfo_id())
@@ -75,3 +101,8 @@ def place_above_resolve(root):
         return True
     except Exception:
         return False
+
+
+def center_and_place_above_resolve(root):
+    resolve_hwnd = center_over_resolve(root)
+    place_above_resolve(root, resolve_hwnd)
