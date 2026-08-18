@@ -7,7 +7,7 @@ if exist ".git\" (
  if not errorlevel 1 (echo Updating repository...& git pull --ff-only& if errorlevel 1 goto :error)
 )
 call :find_python
-if not defined PYTHON_EXE (echo Python was not found. Installing Python 3.13...& call :install_python& if errorlevel 1 goto :error& call :find_python)
+if not defined PYTHON_EXE (echo Python was not found. Installing Python 3.13...& call :install_python& if errorlevel 1 goto :error& call :find_python& if defined PYTHON_EXE "%PYTHON_EXE%" "%~dp0dependency_manager.py" mark python winget Python.Python.3.13)
 if not defined PYTHON_EXE (echo ERROR: Python could not be located.& goto :error)
 echo Python found: %PYTHON_EXE%
 "%PYTHON_EXE%" --version
@@ -25,6 +25,7 @@ if errorlevel 1 (
  "%PYTHON_EXE%" -m ensurepip --upgrade >nul 2>nul
  "%PYTHON_EXE%" -m pip install --disable-pip-version-check --upgrade numpy
  if errorlevel 1 (echo ERROR: NumPy installation failed.& goto :error)
+ "%PYTHON_EXE%" "%~dp0dependency_manager.py" mark numpy pip numpy
 )
 "%PYTHON_EXE%" -c "import numpy; print('NumPy', numpy.__version__)"
 if errorlevel 1 goto :error
@@ -35,6 +36,7 @@ if not defined FFMPEG_EXE (
  call :install_ffmpeg
  if errorlevel 1 goto :error
  call :find_ffmpeg
+ if defined FFMPEG_EXE "%PYTHON_EXE%" "%~dp0dependency_manager.py" mark ffmpeg winget Gyan.FFmpeg
 )
 if not defined FFMPEG_EXE (echo ERROR: FFmpeg could not be located after installation.& goto :error)
 echo FFmpeg found: %FFMPEG_EXE%
@@ -44,7 +46,7 @@ if errorlevel 1 goto :error
 set "DVR_MODULE=%PROGRAMDATA%\Blackmagic Design\DaVinci Resolve\Support\Developer\Scripting\Modules\DaVinciResolveScript.py"
 if exist "%DVR_MODULE%" (echo DaVinci Resolve scripting module found.) else (echo WARNING: DaVinci Resolve scripting module was not found at:& echo   %DVR_MODULE%)
 echo Checking Python sources...
-"%PYTHON_EXE%" -m py_compile "resolve_project_builder.py" "managed_builder.py" "managed_builder_runner.py" "project_update.py" "project_update_dialog.py" "ui_windows.py" "timeline_audio.py" "intro_fingerprint.py" "intro_match_routing.py" "intro_detection.py" "resolve_lifecycle.py" "resolve_gui.py" "config_migrate.py"
+"%PYTHON_EXE%" -m py_compile "resolve_project_builder.py" "managed_builder.py" "managed_builder_runner.py" "project_update.py" "project_update_dialog.py" "ui_windows.py" "timeline_audio.py" "intro_fingerprint.py" "intro_match_routing.py" "intro_detection.py" "resolve_lifecycle.py" "resolve_gui.py" "config_migrate.py" "dependency_manager.py"
 if errorlevel 1 goto :error
 if not exist "runtime" mkdir "runtime" >nul 2>nul
 if not exist "runtime\logs" mkdir "runtime\logs" >nul 2>nul
@@ -75,10 +77,10 @@ exit /b 1
 where winget >nul 2>nul
 if errorlevel 1 (echo ERROR: WinGet is required to install FFmpeg.& exit /b 1)
 winget install --id Gyan.FFmpeg --exact --silent --accept-package-agreements --accept-source-agreements
-if not errorlevel 1 exit /b 0
+if not errorlevel 1 (set "FFMPEG_PACKAGE=Gyan.FFmpeg"& exit /b 0)
 echo Primary FFmpeg package failed; trying Essentials...
 winget install --id Gyan.FFmpeg.Essentials --exact --silent --accept-package-agreements --accept-source-agreements
-if not errorlevel 1 exit /b 0
+if not errorlevel 1 (set "FFMPEG_PACKAGE=Gyan.FFmpeg.Essentials"& exit /b 0)
 exit /b 1
 
 :error
