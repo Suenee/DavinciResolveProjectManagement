@@ -12,6 +12,11 @@ if os.name == 'nt':
     SWP_NOMOVE = 0x0002
     SWP_NOSIZE = 0x0001
     SWP_NOACTIVATE = 0x0010
+    setter = getattr(user32, 'SetWindowLongPtrW', user32.SetWindowLongW)
+    setter.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_void_p]
+    setter.restype = ctypes.c_void_p
+    user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+    user32.SetWindowPos.restype = wintypes.BOOL
 
 
 def _process_name(pid):
@@ -34,9 +39,9 @@ def find_resolve_window():
     if os.name != 'nt':
         return None
     found = []
-    EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    enum_proc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 
-    @EnumWindowsProc
+    @enum_proc
     def callback(hwnd, _):
         if not user32.IsWindowVisible(hwnd):
             return True
@@ -52,7 +57,7 @@ def find_resolve_window():
 
 
 def place_above_resolve(root):
-    """Keep a Tk top-level directly above visible DaVinci Resolve without global always-on-top."""
+    """Keep a Tk top-level above visible DaVinci Resolve without global always-on-top."""
     try:
         root.update_idletasks()
         root.lift()
@@ -64,8 +69,7 @@ def place_above_resolve(root):
         hwnd = int(root.winfo_id())
         if not hwnd or hwnd == resolve_hwnd:
             return False
-        setter = getattr(user32, 'SetWindowLongPtrW', user32.SetWindowLongW)
-        setter(hwnd, GWLP_HWNDPARENT, resolve_hwnd)
+        setter(hwnd, GWLP_HWNDPARENT, ctypes.c_void_p(int(resolve_hwnd)))
         user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
         root.lift()
         return True
