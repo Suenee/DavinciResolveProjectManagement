@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.03 - 18.08.2026
+
+- Added a single update checklist dialog for existing Resolve projects.
+- The dialog shows repository, timeline, Voice Isolation, intro routing, and DELIVERY readiness before any changes are made.
+- Repository status shows the number of files missing from the Media Pool, with a tooltip explaining the value.
+- Readiness states use `✓` for prepared and `✕` for not prepared.
+- Added logical dependencies between timeline creation, Voice Isolation, and intro detection options.
+- Existing projects can create another base timeline; name collisions use `(2)`, `(3)`, and subsequent numeric suffixes.
+- Repository synchronization and DELIVERY configuration remain independently selectable.
+- Cancel performs no project modification.
+- Made clean audio track creation idempotent to prevent duplicate AUDIO tracks.
+- Intro routing now reuses an existing clean audio track when available.
+
 ## 1.02 - 18.08.2026
 
 - Added automatic intro/jingle detection for newly-created timelines when `SHOOTING` has no `SET xx` folders.
