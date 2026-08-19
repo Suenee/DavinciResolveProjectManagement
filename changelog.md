@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.10 - 19.08.2026
+
+- Replaced the fixed new-project suggestion list with a temporary autocomplete popup below the project-name field.
+- Fixed intro search-window display conversion: internal seconds are now shown as whole minutes (1-5) and converted back to seconds on save.
+- Fixed intro confidence display conversion: internal decimal values such as `0.78` are shown as whole percentages such as `78` and converted back on save.
+- Added logical UI dependency between `CreateCleanAudioTrack` and its track-name field; the name is disabled when the clean track is disabled.
+- Added validation for project root, intro folder, Resolve.exe, Resolve Project Library name, DELIVERY folder name, and required clean-audio track name.
+- Project root and intro folder remain selected through the standard Windows folder picker.
+- Resolve executable remains read-only and can be found automatically or selected manually; manual selection is validated as `Resolve.exe`.
+- Settings are reloaded immediately after saving. Changing `ProjectRoot` refreshes the running project browser without restarting the application.
+
 ## 1.09 - 19.08.2026
 
 - Added a project browser shown when no project name is supplied and reused for ambiguous project searches.
@@ -28,18 +39,3 @@
 - A successful match routes the intro audio to the existing clean AUDIO track without Voice Isolation and creates an explicit video edit at the end of the matched intro.
 - Added automatic NumPy and FFmpeg dependency checks/installations to `upgrade.cmd`.
 - New projects remain conservative: fingerprint intro routing is currently triggered only when explicitly selected in the existing-project update workflow.
-
-## 1.07 - 18.08.2026
-
-- Disabled automatic intro/jingle detection and routing because DaVinci Resolve Scene Cut Detection proved unreliable for this workflow.
-- New timelines now only enable Voice Isolation on source audio tracks and add one empty clean audio track without Voice Isolation.
-- Removed the `Vystřihnout znělku` option from the existing-project update dialog so the unreliable feature cannot be triggered accidentally.
-- Kept the experimental intro-detection module in the repository for reference, but it is no longer part of the runtime path.
-
-## 1.06 - 18.08.2026
-
-- Fixed multi-monitor positioning for application dialogs when DaVinci Resolve is on a monitor with negative virtual-screen coordinates.
-- Dialog geometry now uses explicit signed coordinates such as `-1920+200` instead of invalid `+-1920+200` forms.
-- Removed Win32 owner reassignment from dialog Z-order handling so Windows cannot relocate the Tk window after geometry is applied.
-- Dialogs are hidden during initial Tk creation and shown only after their final Resolve-relative position is calculated.
-- Restored a compact update-dialog row height by reducing status-symbol font size and removing extra row padding while retaining colored diagnostics.
