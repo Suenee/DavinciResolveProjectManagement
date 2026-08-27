@@ -2,3 +2,5 @@ config.ini
 __pycache__/
 *.pyc
 runtime/
+logs/
+upgrade.log
