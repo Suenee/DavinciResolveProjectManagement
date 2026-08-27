@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.11 - 27.08.2026
+
+- Added verified Resolve media import. After batch import, the application checks the Media Pool, retries missing files individually, and stops before later automation if files are still missing.
+- Added workflow-stage diagnostics (`RESOLVE_CONNECT`, `PROJECT_OPEN`, `MEDIA_IMPORT`, `MEDIA_VERIFY`, `TIMELINE`, `VOICE_ISOLATION`, `INTRO_MATCH`, `DELIVERY`, `SAVE`, `COMPLETE`).
+- Runtime errors now include the exact failed phase and a Python traceback in the application log.
+- Moved application logs from `runtime/logs/` to repository-root `logs/`; existing logs are migrated safely during upgrade.
+- Replaced the monolithic batch upgrader with the shared project-family architecture: tiny `upgrade.cmd` bootstrap plus authoritative self-updating `upgrade.ps1`.
+- `upgrade.cmd` fetches the current runner from `origin/main` into a temporary file before any repository mutation.
+- Added repository-root single-run `upgrade.log` with explicit final `SUCCESS`, `WARNING`, or `FAILED` status.
+- Added explicit branch synchronization and verification that `HEAD == origin/main`.
+- Added safe refusal to overwrite tracked local modifications; untracked runtime/user data is not cleaned or stashed.
+- Added `.gitattributes` enforcing CRLF for Windows CMD/BAT/PowerShell scripts.
+- Hardened PowerShell native-command handling so harmless stderr output does not become a false failure under Windows PowerShell 5.1.
+- Added `UPGRADE.md` documenting the project-specific upgrade protocol and known failure traps.
+
 ## 1.10 - 19.08.2026
 
 - Replaced the fixed new-project suggestion list with a temporary autocomplete popup below the project-name field.
