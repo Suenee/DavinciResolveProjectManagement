@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $Repo = $env:DRPM_REPO
 $TargetBranch = if ($env:DRPM_BRANCH) { $env:DRPM_BRANCH } else { 'main' }
-$RunnerRevision = '1.01-native-safe'
+$RunnerRevision = '1.02-bootstrap-crlf-safe'
 $AppVersion = '1.11'
 if (-not $Repo) { $Repo = Split-Path -Parent $MyInvocation.MyCommand.Path }
 $Repo = [System.IO.Path]::GetFullPath($Repo).TrimEnd('\')
@@ -20,10 +20,7 @@ function Set-Phase([string]$Name) { $script:Phase=$Name; Info "--- $Name ---" }
 function Run-Native([string]$Exe,[string[]]$NativeArgs,[switch]$AllowFailure) {
     $oldPreference=$ErrorActionPreference
     $ErrorActionPreference='Continue'
-    try {
-        & $Exe @NativeArgs
-        $code=$LASTEXITCODE
-    }
+    try { & $Exe @NativeArgs; $code=$LASTEXITCODE }
     finally { $ErrorActionPreference=$oldPreference }
     if ($code -ne 0 -and -not $AllowFailure) { Fail "$Exe failed with exit code $code" }
     return $code
@@ -52,6 +49,18 @@ function Mark-Dependency([string]$Python,[string]$Name,[string]$Kind,[string]$Pa
     $dm=Join-Path $Repo 'dependency_manager.py'
     if (Test-Path $dm) { Run-Native $Python @($dm,'mark',$Name,$Kind,$Package) | Out-Null }
 }
+function Get-TrackedChanges {
+    $lines = @(& git.exe status --porcelain --untracked-files=no)
+    if ($LASTEXITCODE -ne 0) { Fail 'Cannot inspect Git working tree.' }
+    return @($lines | Where-Object { $_ -and $_.Trim() })
+}
+function Get-ChangedPath([string]$StatusLine) {
+    if ($StatusLine.Length -lt 4) { return '' }
+    $path=$StatusLine.Substring(3).Trim()
+    if ($path.StartsWith('"') -and $path.EndsWith('"')) { $path=$path.Trim('"') }
+    if ($path -like '* -> *') { $path=($path -split ' -> ')[-1] }
+    return $path.Replace('\','/')
+}
 
 try {
     Set-Location $Repo
@@ -67,9 +76,33 @@ try {
 
     if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) { Fail 'Git was not found.' }
     Git @('fetch','origin',$TargetBranch) | Out-Null
-    $tracked = (& git.exe status --porcelain --untracked-files=no)
-    if ($LASTEXITCODE -ne 0) { Fail 'Cannot inspect Git working tree.' }
-    if ($tracked) { Fail "Local tracked changes detected. Upgrade stopped to protect local work.`n$tracked" }
+
+    # Bootstrap files are authoritative remote state. Windows CRLF materialization can make
+    # upgrade.cmd/upgrade.ps1 look modified although there is no user change. The shared
+    # upgrade protocol explicitly requires us not to let that false dirty state block update.
+    $bootstrap=@('upgrade.cmd','upgrade.ps1','.gitattributes')
+    $tracked=Get-TrackedChanges
+    if ($tracked) {
+        $realChanges=@()
+        $bootstrapChanges=@()
+        foreach($line in $tracked) {
+            $path=Get-ChangedPath $line
+            if ($bootstrap -contains $path) { $bootstrapChanges += $path } else { $realChanges += $line }
+        }
+        if ($realChanges.Count -gt 0) {
+            Fail "Local tracked changes detected. Upgrade stopped to protect local work.`n$($realChanges -join "`n")"
+        }
+        if ($bootstrapChanges.Count -gt 0) {
+            Warn ("Bootstrap files appear dirty and will be restored from Git semantics: " + (($bootstrapChanges | Sort-Object -Unique) -join ', '))
+            # Restore only explicit bootstrap files. Never touch runtime/untracked data.
+            foreach($path in ($bootstrapChanges | Sort-Object -Unique)) {
+                Git @('restore','--source','HEAD','--worktree','--',$path) | Out-Null
+            }
+            $remaining=Get-TrackedChanges
+            if ($remaining) { Fail "Tracked changes remain after bootstrap normalization.`n$($remaining -join "`n")" }
+        }
+    }
+
     $currentBranch = (& git.exe branch --show-current).Trim()
     if ($currentBranch -ne $TargetBranch) { Git @('checkout',$TargetBranch) | Out-Null }
     Git @('merge','--ff-only',"origin/$TargetBranch") | Out-Null
