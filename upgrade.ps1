@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $Repo = $env:DRPM_REPO
 $TargetBranch = if ($env:DRPM_BRANCH) { $env:DRPM_BRANCH } else { 'main' }
-$RunnerRevision = '1.00-ps-bootstrap'
+$RunnerRevision = '1.01-native-safe'
 $AppVersion = '1.11'
 if (-not $Repo) { $Repo = Split-Path -Parent $MyInvocation.MyCommand.Path }
 $Repo = [System.IO.Path]::GetFullPath($Repo).TrimEnd('\')
@@ -17,17 +17,26 @@ function Ok([string]$Text) { Write-Host $Text -ForegroundColor Green }
 function Warn([string]$Text) { $script:Warnings++; Write-Host "WARNING: $Text" -ForegroundColor Yellow }
 function Fail([string]$Text) { Write-Host "ERROR: $Text" -ForegroundColor Red; throw $Text }
 function Set-Phase([string]$Name) { $script:Phase=$Name; Info "--- $Name ---" }
-function Run-Native([string]$Exe,[string[]]$Args,[switch]$AllowFailure) {
-    & $Exe @Args
-    $code = $LASTEXITCODE
+function Run-Native([string]$Exe,[string[]]$NativeArgs,[switch]$AllowFailure) {
+    $oldPreference=$ErrorActionPreference
+    $ErrorActionPreference='Continue'
+    try {
+        & $Exe @NativeArgs
+        $code=$LASTEXITCODE
+    }
+    finally { $ErrorActionPreference=$oldPreference }
     if ($code -ne 0 -and -not $AllowFailure) { Fail "$Exe failed with exit code $code" }
     return $code
 }
-function Git([string[]]$Args,[switch]$AllowFailure) { return Run-Native 'git.exe' $Args -AllowFailure:$AllowFailure }
+function Git([string[]]$GitArgs,[switch]$AllowFailure) { return Run-Native 'git.exe' $GitArgs -AllowFailure:$AllowFailure }
 function Find-Python {
     foreach ($name in @('python.exe','python3.exe')) {
         $cmd=Get-Command $name -ErrorAction SilentlyContinue
-        if ($cmd) { try { & $cmd.Source --version *> $null; if ($LASTEXITCODE -eq 0) { return $cmd.Source } } catch {} }
+        if ($cmd) {
+            $oldPreference=$ErrorActionPreference;$ErrorActionPreference='Continue'
+            try { & $cmd.Source --version *> $null; $code=$LASTEXITCODE } finally { $ErrorActionPreference=$oldPreference }
+            if ($code -eq 0) { return $cmd.Source }
+        }
     }
     foreach ($p in @("$env:LOCALAPPDATA\Programs\Python\Python313\python.exe","$env:LOCALAPPDATA\Programs\Python\Python314\python.exe")) { if (Test-Path $p) { return $p } }
     return $null
@@ -94,8 +103,8 @@ try {
     if ($pythonInstalled) { Mark-Dependency $python 'python' 'winget' 'Python.Python.3.13' }
     $dm=Join-Path $Repo 'dependency_manager.py'
     if (Test-Path $dm) { Run-Native $python @($dm,'cleanup','python','numpy','ffmpeg') | Out-Null }
-    & $python -c 'import numpy' *> $null
-    if ($LASTEXITCODE -ne 0) {
+    $numpyCode=Run-Native $python @('-c','import numpy') -AllowFailure
+    if ($numpyCode -ne 0) {
         Run-Native $python @('-m','ensurepip','--upgrade') | Out-Null
         Run-Native $python @('-m','pip','install','--disable-pip-version-check','--upgrade','numpy') | Out-Null
         Mark-Dependency $python 'numpy' 'pip' 'numpy'
