@@ -3,7 +3,7 @@ from __future__ import annotations
 import configparser,json,os,subprocess,sys,time
 from datetime import datetime
 from pathlib import Path
-APP_DIR=Path(__file__).resolve().parent; RUNTIME_DIR=APP_DIR/'runtime'; STATE_FILE=RUNTIME_DIR/'state.json'; CONFIG=APP_DIR/'config.ini'; LOG_DIR=RUNTIME_DIR/'logs'
+APP_DIR=Path(__file__).resolve().parent; RUNTIME_DIR=APP_DIR/'runtime'; STATE_FILE=RUNTIME_DIR/'state.json'; CONFIG=APP_DIR/'config.ini'; LOG_DIR=APP_DIR/'logs'
 DEFAULT_EXE=Path(os.environ.get('PROGRAMFILES',r'C:\Program Files'))/'Blackmagic Design'/'DaVinci Resolve'/'Resolve.exe'
 def config():
  p=configparser.ConfigParser(); p.read(CONFIG,encoding='utf-8'); return p
