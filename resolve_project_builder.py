@@ -7,6 +7,7 @@ import argparse
 import configparser
 import os
 from pathlib import Path
+from project_paths import active_root
 import re
 import shutil
 import subprocess
@@ -43,15 +44,13 @@ def load_config(config_path: Path) -> tuple[Path, str]:
     parser = configparser.ConfigParser()
     parser.read(config_path, encoding="utf-8")
 
-    if not parser.has_option("Paths", "ProjectRoot"):
-        raise BuilderError("Missing [Paths] ProjectRoot in configuration.")
-
-    project_root_raw = parser.get("Paths", "ProjectRoot").strip()
-    if not project_root_raw:
-        raise BuilderError("[Paths] ProjectRoot must not be empty.")
+    try:
+        project_root = active_root(parser)
+    except RuntimeError as exc:
+        raise BuilderError(str(exc)) from exc
 
     resolve_folder = parser.get("DaVinciResolve", "ResolveProjectFolder", fallback="").strip()
-    return Path(project_root_raw), resolve_folder
+    return project_root, resolve_folder
 
 
 def import_resolve_module():
