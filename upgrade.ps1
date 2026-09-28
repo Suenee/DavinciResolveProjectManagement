@@ -1,8 +1,9 @@
 $ErrorActionPreference = 'Stop'
 $Repo = $env:DRPM_REPO
 $TargetBranch = if ($env:DRPM_BRANCH) { $env:DRPM_BRANCH } else { 'main' }
-$RunnerRevision = '1.03-deterministic-git-reset'
-$AppVersion = '1.12'
+$RunnerRevision = '1.04-version-visibility'
+$TargetVersion = '1.12'
+$CurrentVersion = 'unknown'
 if (-not $Repo) { $Repo = Split-Path -Parent $MyInvocation.MyCommand.Path }
 $Repo = [System.IO.Path]::GetFullPath($Repo).TrimEnd('\')
 $Log = Join-Path $Repo 'upgrade.log'
@@ -53,16 +54,23 @@ function Mark-Dependency([string]$Python,[string]$Name,[string]$Kind,[string]$Pa
 try {
     Set-Location $Repo
     Info "=== DaVinci Resolve Project Management upgrade ==="
-    Info "Application version: $AppVersion"
-    Info "Upgrade runner: $RunnerRevision"
+    if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) { Fail 'Git was not found.' }
+    $startCommit = (& git.exe rev-parse HEAD 2>$null)
+    try {
+        $oldUpgrade = & git.exe show "HEAD:upgrade.ps1" 2>$null
+        $oldVersionLine = $oldUpgrade | Select-String -Pattern "\$(?:TargetVersion|AppVersion)\s*=\s*'([^']+)'" | Select-Object -First 1
+        if ($oldVersionLine -and $oldVersionLine.Matches.Count -gt 0) { $CurrentVersion=$oldVersionLine.Matches[0].Groups[1].Value }
+    } catch {}
+    Info "Application: DaVinci Resolve Project Management"
+    if ($CurrentVersion -eq $TargetVersion) { Info ("Current:     {0} / Target: {1} - already current" -f $CurrentVersion,$TargetVersion) }
+    else { Info ("Current:     {0}" -f $CurrentVersion); Info ("Target:      {0}" -f $TargetVersion) }
+    Info "Updater:     $RunnerRevision"
+    Info "Branch:      $TargetBranch"
     Info "Date/time: $(Get-Date -Format 'dd.MM.yyyy HH:mm:ss.fff')"
     Info "Repository: $Repo"
-    Info "Target branch: $TargetBranch"
-    $startCommit = (& git.exe rev-parse HEAD 2>$null)
     Info "Starting commit: $startCommit"
     Info "Runner architecture: CMD bootstrap -> temporary authoritative PowerShell runner"
 
-    if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) { Fail 'Git was not found.' }
 
     Set-Phase 'SELF-UPDATE'
     $unstaged=Run-Native 'git.exe' @('diff','--quiet') -AllowFailure
@@ -143,6 +151,11 @@ try {
     if (Test-Path $dvr) { Ok 'DaVinci Resolve scripting module found.' } else { Warn "DaVinci Resolve scripting module not found at $dvr" }
 
     Set-Phase 'COMPLETE'
+    Write-Host ''
+    Write-Host '==============================================' -ForegroundColor Green
+    Write-Host 'UPGRADE SUCCESSFUL' -ForegroundColor Green
+    Write-Host "DaVinci Resolve Project Management v$TargetVersion" -ForegroundColor Green
+    Write-Host '==============================================' -ForegroundColor Green
     if ($Warnings -gt 0) { $FinalStatus='STATUS: WARNING - phase=COMPLETE' } else { $FinalStatus='STATUS: SUCCESS - phase=COMPLETE' }
 }
 catch {
