@@ -217,3 +217,63 @@ msgstr "Settings..."
 
 msgid "Exit"
 msgstr "Exit"
+
+msgid "Project update — DavinciResolveProjectManagement 1.23"
+msgstr "Project update — DavinciResolveProjectManagement 1.23"
+
+msgid "Action"
+msgstr "Action"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Update repository"
+msgstr "Update repository"
+
+msgid "Number of files present on disk but missing from the Media Pool."
+msgstr "Number of files present on disk but missing from the Media Pool."
+
+msgid "Create timeline"
+msgstr "Create timeline"
+
+msgid "Enable Voice Isolation"
+msgstr "Enable Voice Isolation"
+
+msgid "Cut intro"
+msgstr "Cut intro"
+
+msgid "The intro is detected by audio fingerprint in the first 2 minutes of the timeline."
+msgstr "The intro is detected by audio fingerprint in the first 2 minutes of the timeline."
+
+msgid "Set DELIVERY"
+msgstr "Set DELIVERY"
+
+msgid "No supported intro was found in IntroDetection.Folder."
+msgstr "No supported intro was found in IntroDetection.Folder."
+
+msgid "Intro selection — DavinciResolveProjectManagement 1.23"
+msgstr "Intro selection — DavinciResolveProjectManagement 1.23"
+
+msgid "The project name does not match any rule. Select an intro:"
+msgstr "The project name does not match any rule. Select an intro:"
+
+msgid "No intro"
+msgstr "No intro"
+
+msgid "Title image selection — DavinciResolveProjectManagement 1.23"
+msgstr "Title image selection — DavinciResolveProjectManagement 1.23"
+
+msgid "Select title image:"
+msgstr "Select title image:"
+
+msgid "Select title image"
+msgstr "Select title image"
+
+msgid "Images"
+msgstr "Images"
+
+msgid "All files"
+msgstr "All files"
+
+msgid "Choose file…"
+msgstr "Choose file…"
