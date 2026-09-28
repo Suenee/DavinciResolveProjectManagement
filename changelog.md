@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.28 - 28.09.2026
+
+- Fixed the first-run updater guard after a proven fresh bootstrap. On some Windows/network-drive Git configurations, CRLF normalization can make newly checked-out CMD launchers appear modified immediately after checkout.
+- `upgrade.cmd` now marks only the fresh-bootstrap path with `DRPM_FRESH_BOOTSTRAP=1`. The PowerShell updater skips the local-change protection only for that first guaranteed-new checkout, then performs the authoritative `reset --hard origin/main`.
+- Normal upgrades keep the existing protection against overwriting local tracked source changes.
+
+
 ## 1.27 - 28.09.2026
 
 - Fixed fresh-bootstrap phase zero in `upgrade.cmd`: CMD expanded `%DRPM_BOOT%` before the variable was assigned because assignment and invocation were inside the same parenthesized block.
