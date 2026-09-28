@@ -54,6 +54,7 @@ set "GIT_CONFIG_KEY_0=safe.directory"
 set "GIT_CONFIG_VALUE_0=%CD%"
 
 if not exist ".git\" (
+  set "DRPM_FRESH_BOOTSTRAP=1"
   echo Fresh bootstrap: initializing repository...
   for /f "delims=" %%F in ('dir /b /a 2^>nul') do (
     if /I not "%%F"=="upgrade.cmd" if /I not "%%F"=="logs" (
