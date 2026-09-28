@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.19 - 28.09.2026
+
+- Added application version 1.19 to the project browser, settings, new-project, project-update, intro-selection, and title-image-selection window titles for immediate runtime verification.
+- Redesigned Settings into a compact two-column layout with grouped Project, DaVinci Resolve, DELIVERY, Logging, Timeline, Timeline Assets, and Intro sections.
+- Exposed the new Timeline Assets configuration in Settings, including the `%Y` title path, title/end-credit durations, candidate count, automatic-match threshold, year-boundary tolerance, and end-credit filename.
+- Added validation that the configured title path retains the explicit `%Y` placeholder.
+- Hardened Windows foreground handling with transient dialog ownership where available, a short Tk topmost pulse, native `BringWindowToTop`, and a delayed second activation attempt.
+- Dialogs return to normal non-topmost behavior after activation and are not kept globally always-on-top.
+
 ## 1.18 - 28.09.2026
 
 - Added configurable timeline title-image discovery under `[TimelineAssets]` using a `%Y` year placeholder in `TitlesRoot`.
