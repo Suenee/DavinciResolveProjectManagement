@@ -41,7 +41,7 @@ class ConsoleProgress:
  def start(self,message):
   self.cancel_requested=False
   try:
-   self.root=tk.Tk();self.root.title(_('Progress — DavinciResolveProjectManagement 1.23'));self.root.resizable(False,False)
+   self.root=tk.Tk();self.root.title(_('Progress — DavinciResolveProjectManagement 1.26'));self.root.resizable(False,False)
    box=ttk.Frame(self.root,padding=18);box.pack();self.status=tk.StringVar(value=message);self.detail=tk.StringVar(value='')
    ttk.Label(box,textvariable=self.status,font=('Segoe UI',11,'bold')).pack(anchor='w')
    ttk.Label(box,textvariable=self.detail).pack(anchor='w',pady=(5,8))
@@ -232,7 +232,7 @@ def _append_still(mp,timeline,item,seconds,fps,label):
  life.log('TIMELINE_STILL_APPEND_RETURN',kind=label,success=bool(result),requested_frames=frames,actual_frames=actual,verified=verified)
  if result and not verified:life.log('TIMELINE_STILL_DURATION_MISMATCH',kind=label,requested_frames=frames,actual_frames=actual)
  return bool(result)
-def create_initial_timeline(mp,master,shoot,timeline_name,intro_path=None,title_path=None,credits_path=None,title_seconds=20,credits_seconds=25,fps=25):
+def create_initial_timeline(mp,master,shoot,timeline_name,intro_path=None,title_path=None,credits_path=None,title_seconds=20,credits_seconds=25,fps=25,trim_ranges=None):
  shoot_bin=getbin(mp,master,shoot.name);clip_map={};collect_clip_items(shoot_bin,clip_map);ordered_files=shooting_order(shoot)
  images_bin=getbin(mp,master,'IMAGES');image_map={};collect_clip_items(images_bin,image_map)
  intro_clip=None
@@ -248,7 +248,23 @@ def create_initial_timeline(mp,master,shoot,timeline_name,intro_path=None,title_
  shooting=[clip_map[norm(p)] for p in ordered_files if norm(p) in clip_map]
  first_shooting_frame=None
  if shooting:
-  life.log('TIMELINE_SHOOTING_APPEND_CALL',clips=len(shooting));r=mp.AppendToTimeline(shooting);life.log('TIMELINE_SHOOTING_APPEND_RETURN',success=bool(r))
+  append_items=shooting
+  if trim_ranges is not None:
+   append_items=[]
+   for path in ordered_files:
+    item=clip_map.get(norm(path))
+    if item is None:continue
+    trim=trim_ranges.get(norm(path),{})
+    try:
+     props=item.GetClipProperty() or {};source_start=int(float(props.get('Start') or 0));frames=int(float(props.get('Frames') or 0));source_fps=float(str(props.get('FPS') or fps).replace(',','.'))
+     left=max(0,int(round(float(trim.get('start',0))*source_fps)));right=max(0,int(round(float(trim.get('end',0))*source_fps)))
+     if frames>0 and left+right<frames-1:
+      append_items.append({'mediaPoolItem':item,'startFrame':source_start+left,'endFrame':source_start+frames-right})
+      life.log('SILENCE_TRIM_RANGE',file=str(path),source_fps=source_fps,source_frames=frames,trim_start_frames=left,trim_end_frames=right)
+     else:append_items.append(item);life.log('SILENCE_TRIM_RANGE_SKIPPED',file=str(path),reason='invalid_or_unknown_frames')
+    except Exception as e:
+     append_items.append(item);life.log('SILENCE_TRIM_RANGE_SKIPPED',file=str(path),reason='property_error',error=repr(e))
+  life.log('TIMELINE_SHOOTING_APPEND_CALL',clips=len(shooting),trimmed=trim_ranges is not None);r=mp.AppendToTimeline(append_items);life.log('TIMELINE_SHOOTING_APPEND_RETURN',success=bool(r))
   if isinstance(r,(list,tuple)) and r:
    try:first_shooting_frame=int(r[0].GetStart())
    except Exception:first_shooting_frame=None
