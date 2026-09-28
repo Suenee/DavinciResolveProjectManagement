@@ -26,6 +26,10 @@ def _choose(candidates,query):
  return project_browser.choose_project(candidates,query)
 
 
+def _create_initial_timeline(mp,master,shoot,name,intro_first=None):
+ return _base_create_initial_timeline(mp,master,shoot,name,intro_first)
+
+
 def _activate_current():
  root=_active_root
  if root is not None:
@@ -62,7 +66,7 @@ def _claim_instance():
 managed_builder.center=_center_above_resolve
 managed_builder.choose=_choose
 project_update.ask=project_update_dialog.ask
-project_update.set_timeline_creator(_base_create_initial_timeline)
+project_update.set_timeline_creator(_create_initial_timeline)
 managed_builder.build=project_update.build
 
 if __name__=='__main__':
