@@ -7,11 +7,13 @@ import timeline_audio
 import intro_match_routing
 import verified_import
 import timeline_assets
+import silence_trim
 from i18n import _
 
 _CREATOR=None
 _INTRO_SELECTOR=None
 _TITLE_SELECTOR=None
+_SILENCE_SELECTOR=None
 
 def set_timeline_creator(func):
  global _CREATOR;_CREATOR=func
@@ -21,6 +23,9 @@ def set_intro_selector(func):
 
 def set_title_selector(func):
  global _TITLE_SELECTOR;_TITLE_SELECTOR=func
+
+def set_silence_selector(func):
+ global _SILENCE_SELECTOR;_SILENCE_SELECTOR=func
 
 def _select_intro(project_name):
  p=m.configparser.ConfigParser(interpolation=None);p.optionxform=str;p.read(m.CONFIG,encoding='utf-8')
@@ -73,8 +78,8 @@ def _status(project,base,missing,src,deliver_folder,shoot):
 def ask(project_name,status):raise RuntimeError('Update dialog was not initialized.')
 def _stage(name):
  life.put(stage=name);life.log('WORKFLOW_STAGE',stage=name)
- labels={'RESOLVE_CONNECT':_('Connecting to DaVinci Resolve…'),'PROJECT_OPEN':_('Opening Project Library…'),'PROJECT_CREATE':_('Creating project…'),'MEDIA_POOL':_('Preparing Media Pool…'),'MEDIA_IMPORT':_('Importing media…'),'MEDIA_VERIFY':_('Verifying media…'),'TIMELINE':_('Creating timeline…'),'VOICE_ISOLATION':_('Setting Voice Isolation…'),'INTRO_MATCH':_('Processing intro…'),'DELIVERY':_('Setting DELIVERY…'),'SAVE':_('Saving project…'),'FINAL_UI':_('Preparing EDIT page…'),'COMPLETE':_('Done')}
- pct={'RESOLVE_CONNECT':5,'PROJECT_OPEN':12,'PROJECT_CREATE':18,'MEDIA_POOL':24,'MEDIA_IMPORT':30,'MEDIA_VERIFY':72,'TIMELINE':78,'VOICE_ISOLATION':84,'INTRO_MATCH':87,'DELIVERY':90,'SAVE':94,'FINAL_UI':97,'COMPLETE':100}
+ labels={'RESOLVE_CONNECT':_('Connecting to DaVinci Resolve…'),'PROJECT_OPEN':_('Opening Project Library…'),'PROJECT_CREATE':_('Creating project…'),'MEDIA_POOL':_('Preparing Media Pool…'),'MEDIA_IMPORT':_('Importing media…'),'MEDIA_VERIFY':_('Verifying media…'),'SILENCE_ANALYSIS':_('Analyzing clip edges…'),'TIMELINE':_('Creating timeline…'),'VOICE_ISOLATION':_('Setting Voice Isolation…'),'INTRO_MATCH':_('Processing intro…'),'DELIVERY':_('Setting DELIVERY…'),'SAVE':_('Saving project…'),'FINAL_UI':_('Preparing EDIT page…'),'COMPLETE':_('Done')}
+ pct={'RESOLVE_CONNECT':5,'PROJECT_OPEN':12,'PROJECT_CREATE':18,'MEDIA_POOL':24,'MEDIA_IMPORT':30,'MEDIA_VERIFY':72,'SILENCE_ANALYSIS':75,'TIMELINE':78,'VOICE_ISOLATION':84,'INTRO_MATCH':87,'DELIVERY':90,'SAVE':94,'FINAL_UI':97,'COMPLETE':100}
  m.PROGRESS.stage(labels.get(name,name),pct.get(name))
 def _timecode_to_frames(tc,fps):
  fps_i=max(1,int(round(float(fps))))
@@ -95,9 +100,9 @@ def _finish_resolve_ui(resolve,project,timeline,shooting_frame=None,fps=25):
  m.PROGRESS.ensure_visible('FINAL_UI_AFTER_RESOLVE')
  life.log('FINAL_UI_RESULT',current_timeline=current_ok,edit_page=page_ok,shooting_frame=shooting_frame,target_timecode=target_tc,playhead_shooting_start=playhead_ok)
  return current_ok and page_ok and playhead_ok
-def _create_timeline(mp,master,shoot,name,voice,intro_reference=None,intro_first=None,title_path=None,credits_path=None,title_seconds=20,credits_seconds=25,fps=25):
+def _create_timeline(mp,master,shoot,name,voice,intro_reference=None,intro_first=None,title_path=None,credits_path=None,title_seconds=20,credits_seconds=25,fps=25,trim_ranges=None):
  if _CREATOR is None:raise RuntimeError('Timeline creator není inicializován.')
- _stage('TIMELINE');created=_CREATOR(mp,master,shoot,name,intro_first,title_path,credits_path,title_seconds,credits_seconds,fps)
+ _stage('TIMELINE');created=_CREATOR(mp,master,shoot,name,intro_first,title_path,credits_path,title_seconds,credits_seconds,fps,trim_ranges)
  if isinstance(created,tuple):timeline,shooting_frame=created
  else:timeline,shooting_frame=created,None
  if voice:_stage('VOICE_ISOLATION');timeline=timeline_audio.configure(timeline)
@@ -126,6 +131,13 @@ def build(query,keep):
   phase='PROJECT_OPEN';_stage(phase);pm=r.GetProjectManager();pm.GotoRootFolder()
   if folder and not pm.OpenFolder(folder):raise RuntimeError(f'Project Library folder nenalezen: {folder}')
   projects=pm.GetProjectListInCurrentFolder() or [];existing=next((x for x in projects if x.casefold()==name.casefold()),None)
+  silence_requested=False
+  silence_cfg=silence_trim.config()
+  if not existing and silence_cfg['enabled'] and _SILENCE_SELECTOR is not None:
+   silence_requested=bool(_SILENCE_SELECTOR(name))
+   life.log('SILENCE_TRIM_USER_CHOICE',project=name,enabled=True,selected=silence_requested)
+  elif not existing:
+   life.log('SILENCE_TRIM_USER_CHOICE',project=name,enabled=silence_cfg['enabled'],selected=False)
   if not existing:
    phase='PROJECT_CREATE';_stage(phase)
    life.log('PROJECT_CREATE_CALL',name=name)
@@ -171,12 +183,24 @@ def build(query,keep):
    fps_raw=pr.GetSetting('timelineFrameRate') or pr.GetSetting('timelinePlaybackFrameRate') or '25'
    try:fps=float(str(fps_raw).replace(',','.'))
    except ValueError:fps=25.0
-   tn=m.nodate(name) or name;phase='TIMELINE';created_timeline,shooting_frame=_create_timeline(mp,master,shoot,tn,True,intro_first=timeline_intro,title_path=timeline_title,credits_path=timeline_credits,title_seconds=asset_cfg['title_seconds'],credits_seconds=asset_cfg['credits_seconds'],fps=fps)
+   tn=m.nodate(name) or name
+   if silence_requested:
+    phase='SILENCE_ANALYSIS';_stage(phase)
+    ordered=m.shooting_order(shoot)
+    def silence_progress(path,current,total):
+     m.PROGRESS.bar(_('Analyzing silence: {file}').format(file=path.name),current,total)
+    trim_ranges=silence_trim.analyze_files(ordered,silence_progress);m.PROGRESS.bar_done()
+    raw_name=tn+' RAW';edit_name=tn+' EDIT'
+    raw_timeline,raw_frame=_create_timeline(mp,master,shoot,raw_name,True,intro_first=timeline_intro,title_path=timeline_title,credits_path=timeline_credits,title_seconds=asset_cfg['title_seconds'],credits_seconds=asset_cfg['credits_seconds'],fps=fps)
+    created_timeline,shooting_frame=_create_timeline(mp,master,shoot,edit_name,True,intro_first=timeline_intro,title_path=timeline_title,credits_path=timeline_credits,title_seconds=asset_cfg['title_seconds'],credits_seconds=asset_cfg['credits_seconds'],fps=fps,trim_ranges=trim_ranges)
+    life.log('SILENCE_TRIM_TIMELINES_CREATED',raw=raw_name,edit=edit_name,clips=len(trim_ranges))
+   else:
+    phase='TIMELINE';created_timeline,shooting_frame=_create_timeline(mp,master,shoot,tn,True,intro_first=timeline_intro,title_path=timeline_title,credits_path=timeline_credits,title_seconds=asset_cfg['title_seconds'],credits_seconds=asset_cfg['credits_seconds'],fps=fps)
    phase='DELIVERY';_stage(phase);m.apply_deliver(pr,src,deliver_preset,deliver_folder)
    phase='SAVE';_stage(phase)
    if not pm.SaveProject():raise RuntimeError('SaveProject() selhal.')
    _finish_resolve_ui(r,pr,created_timeline,shooting_frame,fps)
-   life.log('PROJECT_CREATED',name=name,imported=imported,timeline=tn);print(f'[OK] Projekt vytvořen: {name} | Timeline: {tn} | Média: {imported}')
+   life.log('PROJECT_CREATED',name=name,imported=imported,timeline=(tn+' EDIT' if silence_requested else tn),silence_trim=silence_requested);print(f'[OK] Projekt vytvořen: {name} | Timeline: {(tn+\' EDIT\') if silence_requested else tn} | Média: {imported}')
   else:
    phase='PROJECT_LOAD';_stage(phase);pr=pm.LoadProject(existing)
    if pr is None:raise RuntimeError(f'Existující projekt nelze otevřít: {existing}')
