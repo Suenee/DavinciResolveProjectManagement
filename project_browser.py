@@ -44,7 +44,7 @@ def propose_name(raw,root):
  return f'{date} {base} {num}'
 def unique_name(name,root):return not any(p.name.casefold()==name.casefold() for p in projects(root))
 def ask_new_project(parent,root):
- win=tk.Toplevel(parent);win.title('Nový projekt');win.resizable(False,False);result=[None];confirmed=[False];popup=[None];box=ttk.Frame(win,padding=18);box.grid();ttk.Label(box,text='Název projektu:').grid(row=0,column=0,sticky='w');var=tk.StringVar();entry=ttk.Entry(box,textvariable=var,width=54);entry.grid(row=1,column=0,columnspan=2,sticky='ew',pady=(4,2));msg=tk.Label(box,text='',fg='#c00000',anchor='w',height=1);msg.grid(row=2,column=0,columnspan=2,sticky='w',pady=(3,0));buttons=ttk.Frame(box);buttons.grid(row=3,column=0,columnspan=2,pady=(12,0));okb=ttk.Button(buttons,text='OK',width=14);okb.pack(side='left',padx=6);ttk.Button(buttons,text='Cancel',width=14,command=win.destroy).pack(side='left',padx=6)
+ win=tk.Toplevel(parent);win.title('Nový projekt — DavinciResolveProjectManagement 1.19');win.resizable(False,False);result=[None];confirmed=[False];popup=[None];box=ttk.Frame(win,padding=18);box.grid();ttk.Label(box,text='Název projektu:').grid(row=0,column=0,sticky='w');var=tk.StringVar();entry=ttk.Entry(box,textvariable=var,width=54);entry.grid(row=1,column=0,columnspan=2,sticky='ew',pady=(4,2));msg=tk.Label(box,text='',fg='#c00000',anchor='w',height=1);msg.grid(row=2,column=0,columnspan=2,sticky='w',pady=(3,0));buttons=ttk.Frame(box);buttons.grid(row=3,column=0,columnspan=2,pady=(12,0));okb=ttk.Button(buttons,text='OK',width=14);okb.pack(side='left',padx=6);ttk.Button(buttons,text='Cancel',width=14,command=win.destroy).pack(side='left',padx=6)
  def hide_popup():
   if popup[0] is not None:
    try:popup[0].destroy()
@@ -118,55 +118,55 @@ def _safe_relative_name(value):
  value=value.strip()
  return bool(value) and not Path(value).is_absolute() and '..' not in Path(value).parts and INVALID_NAME.search(value) is None
 def settings(parent,on_saved=None):
- p=_config();win=tk.Toplevel(parent);win.title('Nastavení');win.resizable(False,False);frm=ttk.Frame(win,padding=18);frm.grid();row=[0];values={};widgets={}
- def label(text):ttk.Label(frm,text=text+':').grid(row=row[0],column=0,sticky='w',padx=(0,10),pady=3)
- def text(sec,key,title):
-  label(title);v=tk.StringVar(value=p.get(sec,key,fallback=''));e=ttk.Entry(frm,textvariable=v,width=43);e.grid(row=row[0],column=1,columnspan=2,sticky='ew',pady=3);values[(sec,key)]=v;widgets[(sec,key)]=e;row[0]+=1
- def folder(sec,key,title):
-  label(title);v=tk.StringVar(value=p.get(sec,key,fallback=''));e=ttk.Entry(frm,textvariable=v,width=38,state='readonly');e.grid(row=row[0],column=1,sticky='ew',pady=3);ttk.Button(frm,text='…',width=3,command=lambda:pick_folder(v)).grid(row=row[0],column=2,padx=(4,0));values[(sec,key)]=v;widgets[(sec,key)]=e;row[0]+=1
- def number(sec,key,title,lo,hi,display=None):
-  label(title);raw=p.get(sec,key,fallback=str(lo));initial=str(display(raw) if display else raw);v=tk.StringVar(value=initial);vcmd=(win.register(lambda x:x=='' or (x.isdigit() and lo<=int(x)<=hi)),'%P');e=ttk.Spinbox(frm,from_=lo,to=hi,textvariable=v,width=40,validate='key',validatecommand=vcmd);e.grid(row=row[0],column=1,columnspan=2,sticky='ew',pady=3);values[(sec,key)]=v;widgets[(sec,key)]=e;row[0]+=1
- def pick_folder(v):
-  x=filedialog.askdirectory(parent=win,initialdir=v.get() if Path(v.get()).is_dir() else None)
-  if x:v.set(x)
- folder('Paths','ProjectRoot','Projektový kořen');text('DaVinciResolve','ResolveProjectFolder','Resolve Project Library')
- label('Resolve EXE');rv=tk.StringVar(value=p.get('DaVinciResolve','ResolveExe',fallback=''));rexe=ttk.Entry(frm,textvariable=rv,state='readonly',width=38);rexe.grid(row=row[0],column=1,sticky='ew');values[('DaVinciResolve','ResolveExe')]=rv;widgets[('DaVinciResolve','ResolveExe')]=rexe
+ p=_config();win=tk.Toplevel(parent);win.title('Nastavení — DavinciResolveProjectManagement 1.19');win.resizable(False,False)
+ outer=ttk.Frame(win,padding=12);outer.grid();values={};widgets={}
+ left=ttk.Frame(outer);right=ttk.Frame(outer);left.grid(row=0,column=0,sticky='n',padx=(0,6));right.grid(row=0,column=1,sticky='n',padx=(6,0))
+ def group(parent,title):g=ttk.LabelFrame(parent,text=title,padding=9);g.pack(fill='x',pady=(0,8));g.columnconfigure(1,weight=1);return g
+ def text(g,row,sec,key,title,width=31):
+  ttk.Label(g,text=title+':').grid(row=row,column=0,sticky='w',padx=(0,8),pady=2);v=tk.StringVar(value=p.get(sec,key,fallback=''));e=ttk.Entry(g,textvariable=v,width=width);e.grid(row=row,column=1,columnspan=2,sticky='ew',pady=2);values[(sec,key)]=v;widgets[(sec,key)]=e
+ def number(g,row,sec,key,title,lo,hi,display=None):
+  ttk.Label(g,text=title+':').grid(row=row,column=0,sticky='w',padx=(0,8),pady=2);raw=p.get(sec,key,fallback=str(lo));v=tk.StringVar(value=str(display(raw) if display else raw));e=ttk.Spinbox(g,from_=lo,to=hi,textvariable=v,width=12);e.grid(row=row,column=1,columnspan=2,sticky='ew',pady=2);values[(sec,key)]=v;widgets[(sec,key)]=e
+ def folder(g,row,sec,key,title,year_template=False):
+  ttk.Label(g,text=title+':').grid(row=row,column=0,sticky='w',padx=(0,8),pady=2);v=tk.StringVar(value=p.get(sec,key,fallback=''));e=ttk.Entry(g,textvariable=v,width=28);e.grid(row=row,column=1,sticky='ew',pady=2);values[(sec,key)]=v;widgets[(sec,key)]=e
+  def pick():
+   raw=v.get();initial=raw.replace('%Y',str(datetime.now().year)) if year_template else raw;x=filedialog.askdirectory(parent=win,initialdir=initial if Path(initial).is_dir() else None)
+   if x:v.set(str(Path(x).parent/'%Y') if year_template and Path(x).name.isdigit() else x)
+  ttk.Button(g,text='…',width=3,command=pick).grid(row=row,column=2,padx=(4,0))
+ gp=group(left,'Projekt');folder(gp,0,'Paths','ProjectRoot','Projektový kořen');text(gp,1,'DaVinciResolve','ResolveProjectFolder','Resolve Project Library')
+ ttk.Label(gp,text='Resolve EXE:').grid(row=2,column=0,sticky='w',padx=(0,8),pady=2);rv=tk.StringVar(value=p.get('DaVinciResolve','ResolveExe',fallback=''));rexe=ttk.Entry(gp,textvariable=rv,width=28);rexe.grid(row=2,column=1,sticky='ew');values[('DaVinciResolve','ResolveExe')]=rv;widgets[('DaVinciResolve','ResolveExe')]=rexe
  def resolve_pick():
-  auto=messagebox.askyesno('DaVinci Resolve','Najít DaVinci Resolve automaticky?\n\nAno = AUTO\nNe = ruční výběr',parent=win);found=''
-  if auto:
-   candidates=[Path(os.environ.get('PROGRAMFILES',r'C:\Program Files'))/'Blackmagic Design'/'DaVinci Resolve'/'Resolve.exe',Path(os.environ.get('PROGRAMFILES(X86)',r'C:\Program Files (x86)'))/'Blackmagic Design'/'DaVinci Resolve'/'Resolve.exe'];found=next((str(x) for x in candidates if x.is_file()),'')
-   if not found:messagebox.showwarning('DaVinci Resolve','Automatické hledání Resolve.exe selhalo. Vyberte soubor ručně.',parent=win)
-  if not found:found=filedialog.askopenfilename(parent=win,title='Vyber Resolve.exe',filetypes=[('DaVinci Resolve','Resolve.exe'),('Executable','*.exe')])
-  if found:
-   if Path(found).name.casefold()!='resolve.exe':messagebox.showerror('DaVinci Resolve','Vybraný soubor musí být Resolve.exe.',parent=win);return
-   rv.set(found)
- ttk.Button(frm,text='…',width=3,command=resolve_pick).grid(row=row[0],column=2,padx=(4,0));row[0]+=1
- number('DaVinciResolve','StartupTimeout','Startup timeout (s)',10,600);number('DaVinciResolve','AliveTimeout','Alive timeout (s)',0,86400);text('Deliver','Preset','DELIVERY preset');text('Deliver','Folder','DELIVERY adresář');number('Timeline','VoiceIsolationAmount','Voice Isolation (%)',0,100)
- label('Vytvořit čistou audio stopu');bv=tk.BooleanVar(value=p.getboolean('Timeline','CreateCleanAudioTrack',fallback=True));cb=ttk.Checkbutton(frm,variable=bv);cb.grid(row=row[0],column=1,sticky='w');values[('Timeline','CreateCleanAudioTrack')]=bv;row[0]+=1;text('Timeline','CleanAudioTrackName','Název čisté audio stopy');folder('IntroDetection','Folder','Adresář znělek');number('IntroDetection','SearchWindowSeconds','Okno hledání znělky (min)',1,5,lambda x:max(1,min(5,round(float(x)/60))));number('IntroDetection','MinConfidence','Min. confidence (%)',0,100,lambda x:round(float(x)*100) if float(x)<=1 else round(float(x)))
- label('Logging');lv=tk.StringVar(value=p.get('Logging','Mode',fallback='single'));log=ttk.Combobox(frm,textvariable=lv,values=('off','single','all'),state='readonly',width=40);log.grid(row=row[0],column=1,columnspan=2,sticky='ew');values[('Logging','Mode')]=lv;row[0]+=1
+  found=filedialog.askopenfilename(parent=win,title='Vyber Resolve.exe',filetypes=[('DaVinci Resolve','Resolve.exe'),('Executable','*.exe')])
+  if found and Path(found).name.casefold()=='resolve.exe':rv.set(found)
+ ttk.Button(gp,text='…',width=3,command=resolve_pick).grid(row=2,column=2,padx=(4,0))
+ gd=group(left,'DaVinci Resolve');number(gd,0,'DaVinciResolve','StartupTimeout','Startup timeout (s)',10,600);number(gd,1,'DaVinciResolve','AliveTimeout','Alive timeout (s)',0,86400)
+ gdel=group(left,'DELIVERY');text(gdel,0,'Deliver','Preset','Preset');text(gdel,1,'Deliver','Folder','Adresář')
+ gl=group(left,'Logging');lv=tk.StringVar(value=p.get('Logging','Mode',fallback='single'));ttk.Label(gl,text='Režim:').grid(row=0,column=0,sticky='w',padx=(0,8));ttk.Combobox(gl,textvariable=lv,values=('off','single','all'),state='readonly',width=22).grid(row=0,column=1,sticky='ew');values[('Logging','Mode')]=lv
+ gt=group(right,'Timeline');number(gt,0,'Timeline','VoiceIsolationAmount','Voice Isolation (%)',0,100);bv=tk.BooleanVar(value=p.getboolean('Timeline','CreateCleanAudioTrack',fallback=True));ttk.Label(gt,text='Čistá audio stopa:').grid(row=1,column=0,sticky='w');ttk.Checkbutton(gt,variable=bv).grid(row=1,column=1,sticky='w');values[('Timeline','CreateCleanAudioTrack')]=bv;text(gt,2,'Timeline','CleanAudioTrackName','Název audio stopy')
+ ga=group(right,'Titulní obrázek / End credits');folder(ga,0,'TimelineAssets','TitlesRoot','Titles',True);number(ga,1,'TimelineAssets','TitleDurationSeconds','Title délka (s)',1,600);number(ga,2,'TimelineAssets','TitleCandidateCount','TOP kandidátů',1,20);number(ga,3,'TimelineAssets','TitleAutoMatchScore','Auto match (%)',0,100,lambda x:round(float(x)*100) if float(x)<=1 else round(float(x)));number(ga,4,'TimelineAssets','YearBoundaryToleranceDays','Přelom roku (dnů)',0,60);text(ga,5,'TimelineAssets','EndCreditsFile','End credits soubor');number(ga,6,'TimelineAssets','EndCreditsDurationSeconds','End credits délka (s)',1,600)
+ gi=group(right,'Znělka');folder(gi,0,'IntroDetection','Folder','Adresář znělek');number(gi,1,'IntroDetection','SearchWindowSeconds','Okno hledání (min)',1,5,lambda x:max(1,min(5,round(float(x)/60))));number(gi,2,'IntroDetection','MinConfidence','Min. confidence (%)',0,100,lambda x:round(float(x)*100) if float(x)<=1 else round(float(x)))
  def dependencies(*_):widgets[('Timeline','CleanAudioTrackName')].configure(state='normal' if bv.get() else 'disabled')
  bv.trace_add('write',dependencies);dependencies()
  def save():
-  root=Path(values[('Paths','ProjectRoot')].get());intro=Path(values[('IntroDetection','Folder')].get());resolve_exe=values[('DaVinciResolve','ResolveExe')].get().strip()
+  root=Path(values[('Paths','ProjectRoot')].get());intro=Path(values[('IntroDetection','Folder')].get());resolve_exe=rv.get().strip();titles=values[('TimelineAssets','TitlesRoot')].get().strip()
   if not root.is_dir():messagebox.showerror('Nastavení','Projektový kořen musí být existující adresář.',parent=win);return
   if not intro.is_dir():messagebox.showerror('Nastavení','Adresář znělek musí být existující adresář.',parent=win);return
-  if resolve_exe and (not Path(resolve_exe).is_file() or Path(resolve_exe).name.casefold()!='resolve.exe'):messagebox.showerror('Nastavení','Resolve EXE musí ukazovat na existující Resolve.exe.',parent=win);return
-  if not _safe_relative_name(values[('DaVinciResolve','ResolveProjectFolder')].get()):messagebox.showerror('Nastavení','Resolve Project Library musí být platný název, ne cesta.',parent=win);return
-  if not _safe_relative_name(values[('Deliver','Folder')].get()):messagebox.showerror('Nastavení','DELIVERY adresář musí být platný relativní název.',parent=win);return
-  if bv.get() and not values[('Timeline','CleanAudioTrackName')].get().strip():messagebox.showerror('Nastavení','Při zapnuté čisté audio stopě musí být zadán její název.',parent=win);return
+  if '%Y' not in titles:messagebox.showerror('Nastavení','Titles musí obsahovat placeholder %Y.',parent=win);return
+  if resolve_exe and (not Path(resolve_exe).is_file() or Path(resolve_exe).name.casefold()!='resolve.exe'):messagebox.showerror('Nastavení','Resolve EXE musí ukazovat na Resolve.exe.',parent=win);return
+  if not _safe_relative_name(values[('DaVinciResolve','ResolveProjectFolder')].get()) or not _safe_relative_name(values[('Deliver','Folder')].get()):messagebox.showerror('Nastavení','Project Library a DELIVERY musí být platné relativní názvy.',parent=win);return
   for (sec,key),v in values.items():
    if not p.has_section(sec):p.add_section(sec)
    val=v.get()
    if (sec,key)==('IntroDetection','SearchWindowSeconds'):val=str(int(val)*60)
-   elif (sec,key)==('IntroDetection','MinConfidence'):val=f'{int(val)/100:.2f}'
+   elif (sec,key) in (('IntroDetection','MinConfidence'),('TimelineAssets','TitleAutoMatchScore')):val=f'{int(val)/100:.2f}'
    elif isinstance(v,tk.BooleanVar):val='true' if bool(val) else 'false'
    p.set(sec,key,str(val))
   with CONFIG.open('w',encoding='utf-8') as f:p.write(f)
   if on_saved:on_saved()
   win.destroy()
- b=ttk.Frame(frm);b.grid(row=row[0],column=0,columnspan=3,pady=(12,0));ttk.Button(b,text='OK',width=14,command=save).pack(side='left',padx=6);ttk.Button(b,text='Cancel',width=14,command=win.destroy).pack(side='left',padx=6);ui_windows.center_and_place_above_resolve(win);win.grab_set()
+ buttons=ttk.Frame(outer);buttons.grid(row=1,column=0,columnspan=2,pady=(4,0));ttk.Button(buttons,text='OK',width=14,command=save).pack(side='left',padx=6);ttk.Button(buttons,text='Cancel',width=14,command=win.destroy).pack(side='left',padx=6)
+ ui_windows.prepare_dialog(win,parent);ui_windows.center_and_place_above_resolve(win);win.grab_set()
 def choose_project(candidates,query='',root_path=None):
- current_root=[root_path or project_root()];all_projects=[list(candidates) if candidates is not None else projects(current_root[0])];result=[None];root=tk.Tk();root.title('Projekty');root.resizable(False,False);menu=tk.Menu(root);pm=tk.Menu(menu,tearoff=False);menu.add_cascade(label='Projekt',menu=pm);root.config(menu=menu);outer=ttk.Frame(root,padding=(18,12,18,14));outer.pack();search_var=tk.StringVar(value=query or '');search=ttk.Entry(outer,textvariable=search_var,width=64);search.pack(fill='x',pady=(0,8));frame=ttk.Frame(outer);frame.pack();tree=ttk.Treeview(frame,columns=('name','created'),show='headings',height=12,selectmode='browse');dw=tkfont.nametofont('TkDefaultFont').measure('18.08.2026 23:59:59')+24;tree.column('name',width=410,anchor='w');tree.column('created',width=dw,anchor='e',stretch=False);tree.heading('name',text='Projekt');tree.heading('created',text='Vytvořeno');scroll=ttk.Scrollbar(frame,orient='vertical',command=tree.yview);tree.configure(yscrollcommand=scroll.set);tree.pack(side='left');scroll.pack(side='right',fill='y');displayed=[];info=tk.StringVar();ttk.Label(outer,textvariable=info).pack(anchor='w',pady=(5,0))
+ current_root=[root_path or project_root()];all_projects=[list(candidates) if candidates is not None else projects(current_root[0])];result=[None];root=tk.Tk();root.title('Projekty — DavinciResolveProjectManagement 1.19');root.resizable(False,False);menu=tk.Menu(root);pm=tk.Menu(menu,tearoff=False);menu.add_cascade(label='Projekt',menu=pm);root.config(menu=menu);outer=ttk.Frame(root,padding=(18,12,18,14));outer.pack();search_var=tk.StringVar(value=query or '');search=ttk.Entry(outer,textvariable=search_var,width=64);search.pack(fill='x',pady=(0,8));frame=ttk.Frame(outer);frame.pack();tree=ttk.Treeview(frame,columns=('name','created'),show='headings',height=12,selectmode='browse');dw=tkfont.nametofont('TkDefaultFont').measure('18.08.2026 23:59:59')+24;tree.column('name',width=410,anchor='w');tree.column('created',width=dw,anchor='e',stretch=False);tree.heading('name',text='Projekt');tree.heading('created',text='Vytvořeno');scroll=ttk.Scrollbar(frame,orient='vertical',command=tree.yview);tree.configure(yscrollcommand=scroll.set);tree.pack(side='left');scroll.pack(side='right',fill='y');displayed=[];info=tk.StringVar();ttk.Label(outer,textvariable=info).pack(anchor='w',pady=(5,0))
  def rebuild(*_):
   q=search_var.get().strip().casefold();ordered=[p for p in all_projects[0] if not q or q in p.name.casefold()];ordered.sort(key=created,reverse=True);displayed[:]=ordered;tree.delete(*tree.get_children())
   for i,pth in enumerate(ordered):tree.insert('','end',iid=str(i),values=(pth.name,datetime.fromtimestamp(created(pth)).strftime('%d.%m.%Y %H:%M:%S')))
