@@ -1,9 +1,9 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: DavinciResolveProjectManagement 1.22\n"
+"Project-Id-Version: DavinciResolveProjectManagement 1.26\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language: en\n"
+"Language: cs\n"
 
 msgid "Cancel"
 msgstr "Zrušit"
@@ -56,8 +56,8 @@ msgstr "Připravuji EDIT stránku…"
 msgid "Import media: {bin}"
 msgstr "Import médií: {bin}"
 
-msgid "New project — DavinciResolveProjectManagement 1.23"
-msgstr "Nový projekt — DavinciResolveProjectManagement 1.23"
+msgid "New project — DavinciResolveProjectManagement 1.26"
+msgstr "Nový projekt — DavinciResolveProjectManagement 1.26"
 
 msgid "Project name:"
 msgstr "Název projektu:"
@@ -104,8 +104,8 @@ msgstr "Cílový soubor již existuje: {path}"
 msgid "The move was safely stopped.\\n\\n{error}"
 msgstr "Přesun byl bezpečně zastaven.\\n\\n{error}"
 
-msgid "Settings — DavinciResolveProjectManagement 1.23"
-msgstr "Nastavení — DavinciResolveProjectManagement 1.23"
+msgid "Settings — DavinciResolveProjectManagement 1.26"
+msgstr "Nastavení — DavinciResolveProjectManagement 1.26"
 
 msgid "Language"
 msgstr "Jazyk"
@@ -194,8 +194,8 @@ msgstr "Resolve EXE musí ukazovat na Resolve.exe."
 msgid "Project Library and DELIVERY must be valid relative names."
 msgstr "Project Library a DELIVERY musí být platné relativní názvy."
 
-msgid "Projects — DavinciResolveProjectManagement 1.23"
-msgstr "Projekty — DavinciResolveProjectManagement 1.23"
+msgid "Projects — DavinciResolveProjectManagement 1.26"
+msgstr "Projekty — DavinciResolveProjectManagement 1.26"
 
 msgid "Created"
 msgstr "Vytvořeno"
@@ -218,8 +218,8 @@ msgstr "Nastavení..."
 msgid "Exit"
 msgstr "Konec"
 
-msgid "Project update — DavinciResolveProjectManagement 1.23"
-msgstr "Aktualizace projektu — DavinciResolveProjectManagement 1.23"
+msgid "Project update — DavinciResolveProjectManagement 1.26"
+msgstr "Aktualizace projektu — DavinciResolveProjectManagement 1.26"
 
 msgid "Action"
 msgstr "Akce"
@@ -251,8 +251,8 @@ msgstr "Nastavit DELIVERY"
 msgid "No supported intro was found in IntroDetection.Folder."
 msgstr "V adresáři IntroDetection.Folder nebyla nalezena žádná podporovaná znělka."
 
-msgid "Intro selection — DavinciResolveProjectManagement 1.23"
-msgstr "Výběr znělky — DavinciResolveProjectManagement 1.23"
+msgid "Intro selection — DavinciResolveProjectManagement 1.26"
+msgstr "Výběr znělky — DavinciResolveProjectManagement 1.26"
 
 msgid "The project name does not match any rule. Select an intro:"
 msgstr "Název projektu neodpovídá žádnému pravidlu. Vyber znělku:"
@@ -260,8 +260,8 @@ msgstr "Název projektu neodpovídá žádnému pravidlu. Vyber znělku:"
 msgid "No intro"
 msgstr "Bez znělky"
 
-msgid "Title image selection — DavinciResolveProjectManagement 1.23"
-msgstr "Výběr úvodního obrázku — DavinciResolveProjectManagement 1.23"
+msgid "Title image selection — DavinciResolveProjectManagement 1.26"
+msgstr "Výběr úvodního obrázku — DavinciResolveProjectManagement 1.26"
 
 msgid "Select title image:"
 msgstr "Vyber úvodní obrázek:"
@@ -278,8 +278,42 @@ msgstr "Všechny soubory"
 msgid "Choose file…"
 msgstr "Vybrat soubor…"
 
-msgid "Progress — DavinciResolveProjectManagement 1.23"
-msgstr "Průběh — DavinciResolveProjectManagement 1.23"
+msgid "Progress — DavinciResolveProjectManagement 1.26"
+msgstr "Průběh — DavinciResolveProjectManagement 1.26"
 
 msgid "Close ({seconds}s)"
 msgstr "Zavřít ({seconds}s)"
+
+
+msgid "Silence Trim"
+msgstr "Ořezání ticha"
+
+msgid "Enabled:"
+msgstr "Zapnuto:"
+
+msgid "Detection range (s)"
+msgstr "Rozsah detekce (s)"
+
+msgid "Silence level (dBFS)"
+msgstr "Úroveň ticha (dBFS)"
+
+msgid "Minimum sound (s)"
+msgstr "Minimální zvuk (s)"
+
+msgid "Space before speech (s)"
+msgstr "Prostor před řečí (s)"
+
+msgid "Space after speech (s)"
+msgstr "Prostor po řeči (s)"
+
+msgid "Silence Trim values are outside the allowed range."
+msgstr "Hodnoty Ořezání ticha jsou mimo povolený rozsah."
+
+msgid "Remove silence from the beginning and end of SHOOTING clips?\\n\\nRAW will remain uncut and EDIT will contain reversible trimmed clip edges."
+msgstr "Odstranit ticho na začátku a konci SHOOTING klipů?\\n\\nRAW zůstane bez střihu a EDIT bude obsahovat vratně oříznuté okraje klipů."
+
+msgid "Analyzing clip edges…"
+msgstr "Analyzuji okraje klipů…"
+
+msgid "Analyzing silence: {file}"
+msgstr "Analyzuji ticho: {file}"
