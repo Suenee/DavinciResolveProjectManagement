@@ -93,6 +93,31 @@ def center_over_resolve(root):
     return None
 
 
+
+def zorder_snapshot(app_hwnd=None,limit=20):
+    """Return Windows Z-order diagnostics. EnumWindows enumerates top-level windows from top to bottom."""
+    if os.name != 'nt':
+        return {'platform':'non-windows'}
+    rows=[]
+    enum_proc=ctypes.WINFUNCTYPE(wintypes.BOOL,wintypes.HWND,wintypes.LPARAM)
+    GWL_EXSTYLE=-20; WS_EX_TOPMOST=0x00000008
+    foreground=int(user32.GetForegroundWindow() or 0)
+    resolve=int(find_resolve_window() or 0)
+    @enum_proc
+    def callback(hwnd,_):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        pid=wintypes.DWORD();user32.GetWindowThreadProcessId(hwnd,ctypes.byref(pid))
+        length=user32.GetWindowTextLengthW(hwnd);buf=ctypes.create_unicode_buffer(length+1);user32.GetWindowTextW(hwnd,buf,length+1)
+        rows.append({'z':len(rows),'hwnd':int(hwnd),'pid':pid.value,'process':_process_name(pid.value),'title':buf.value[:160],
+                     'topmost':bool(user32.GetWindowLongW(hwnd,GWL_EXSTYLE)&WS_EX_TOPMOST),
+                     'foreground':int(hwnd)==foreground,'app':bool(app_hwnd and int(hwnd)==int(app_hwnd)),'resolve':int(hwnd)==resolve})
+        return len(rows)<max(1,limit)
+    user32.EnumWindows(callback,0)
+    def idx(h):return next((r['z'] for r in rows if h and r['hwnd']==int(h)),None)
+    return {'foreground_hwnd':foreground,'app_hwnd':int(app_hwnd or 0),'resolve_hwnd':resolve,
+            'app_z':idx(app_hwnd),'resolve_z':idx(resolve),'windows':rows}
+
 def prepare_dialog(root,parent=None):
     try:
         if parent is not None:
