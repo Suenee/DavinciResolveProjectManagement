@@ -81,7 +81,7 @@ def build(query,keep):
   else:
    phase='PROJECT_LOAD';_stage(phase);pr=pm.LoadProject(existing)
    if pr is None:raise RuntimeError(f'Existující projekt nelze otevřít: {existing}')
-   mp=pr.GetMediaPool();master=mp.GetRootFolder();have=set();m.present(master,have);missing=set(fs)-have;base=m.nodate(name) or name;st=_status(pr,base,missing,src,deliver_folder,shoot);life.log('PROJECT_EXISTS',name=existing,**st)
+   mp=pr.GetMediaPool();master=mp.GetRootFolder();have=set();m.present(master,have);missing=set(fs)-have;base=m.nodate(name) or name;st=_status(pr,base,missing,src,deliver_folder,shoot);incomplete=bool(missing) or not st['timeline'] or not st['voice'] or not st['deliver'];life.log('PROJECT_EXISTS',name=existing,incomplete=incomplete,expected_media=len(fs),present_media=len(have),**st)
    actions=ask(existing,st)
    if actions is None:print('[OK] Aktualizace projektu zrušena.');return m.finish(r,keep,alive)
    changed=False
