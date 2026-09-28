@@ -8,9 +8,33 @@ import intro_match_routing
 import verified_import
 
 _CREATOR=None
+_INTRO_SELECTOR=None
 
 def set_timeline_creator(func):
  global _CREATOR;_CREATOR=func
+
+def set_intro_selector(func):
+ global _INTRO_SELECTOR;_INTRO_SELECTOR=func
+
+def _select_intro(project_name):
+ p=m.configparser.ConfigParser(interpolation=None);p.optionxform=str;p.read(m.CONFIG,encoding='utf-8')
+ folder=p.get('IntroDetection','Folder',fallback='').strip()
+ if not folder:return None
+ root=m.Path(folder)
+ if p.has_section('IntroMapping'):
+  for filename,pattern in p.items('IntroMapping'):
+   try:matched=re.search(pattern,project_name,re.I) is not None
+   except re.error as exc:
+    life.log('INTRO_MAPPING_INVALID',file=filename,pattern=pattern,error=str(exc));continue
+   life.log('INTRO_MAPPING_TEST',project=project_name,file=filename,pattern=pattern,matched=matched)
+   if matched:
+    chosen=root/filename;life.log('INTRO_MAPPING_MATCH',project=project_name,file=str(chosen),exists=chosen.is_file());return chosen
+ intros=sorted([x for x in root.iterdir() if x.is_file() and x.suffix.casefold() in ('.mp4','.mov','.mxf','.avi','.mkv')],key=lambda x:x.name.casefold()) if root.is_dir() else []
+ life.log('INTRO_MAPPING_NO_MATCH',project=project_name,folder=str(root),choices=[x.name for x in intros])
+ if _INTRO_SELECTOR is None:return None
+ chosen=_INTRO_SELECTOR(project_name,intros)
+ life.log('INTRO_MANUAL_SELECTION',project=project_name,file=str(chosen) if chosen else None)
+ return m.Path(chosen) if chosen else None
 
 def _timeline_names(project):
  out=[]
@@ -59,8 +83,7 @@ def _verify_media(mp,master,dirs,fs):
 def build(query,keep):
  phase='INIT'
  root,folder,timeout,alive,deliver_preset,deliver_folder=m.cfg();src=m.resolve_project(root,query);name=src.name;life.begin_log_session('run',name);life.log('PROJECT_RESOLVED',query=query,name=name)
- p=m.configparser.ConfigParser();p.read(m.CONFIG,encoding='utf-8');intro_root=m.Path(p.get('IntroDetection','Folder',fallback='').strip()) if p.get('IntroDetection','Folder',fallback='').strip() else None;news_intro=(intro_root/'UFO Disclosure.mp4') if intro_root and 'zprávy z exopolitiky' in name.casefold() else None
- if news_intro:life.log('PROJECT_INTRO_RULE',project=name,file=str(news_intro),exists=news_intro.is_file())
+ selected_intro=_select_intro(name)
  shoot=next((x for x in src.iterdir() if x.is_dir() and x.name.casefold()=='shooting'),src/'SHOOTING')
  if not shoot.is_dir():raise RuntimeError(f'Chybí SHOOTING: {shoot}')
  dirs=[shoot]+[d for dn in m.OPTIONAL for d in src.iterdir() if d.is_dir() and d.name.casefold()==dn.casefold()];fs={m.norm(p):p for d in dirs for p in m.allfiles(d)}
@@ -91,14 +114,18 @@ def build(query,keep):
    life.log('ROOT_FOLDER_OK',name=name)
    # These standard bins are part of every newly initialized project even when empty.
    m.getbin(mp,master,'IMAGES');intro_bin=m.getbin(mp,master,'INTRO')
-   if news_intro:
-    if not news_intro.is_file():raise RuntimeError(f'Chybí znělka pro Zprávy z Exopolitiky: {news_intro}')
-    life.log('INTRO_IMPORT_CALL',bin='INTRO',file=str(news_intro));mp.SetCurrentFolder(intro_bin);intro_result=mp.ImportMedia([str(news_intro)]);life.log('INTRO_IMPORT_RETURN',bin='INTRO',file=str(news_intro),accepted=len(intro_result) if intro_result else 0)
-    if not intro_result:raise RuntimeError(f'DaVinci Resolve nepřijal znělku: {news_intro}')
+   timeline_intro=None
+   if selected_intro:
+    if not selected_intro.is_file():
+     life.log('INTRO_SKIPPED',reason='file_missing',file=str(selected_intro))
+    else:
+     life.log('INTRO_IMPORT_CALL',bin='INTRO',file=str(selected_intro));mp.SetCurrentFolder(intro_bin);intro_result=mp.ImportMedia([str(selected_intro)]);life.log('INTRO_IMPORT_RETURN',bin='INTRO',file=str(selected_intro),accepted=len(intro_result) if intro_result else 0)
+     if intro_result:timeline_intro=selected_intro
+     else:life.log('INTRO_SKIPPED',reason='resolve_rejected',file=str(selected_intro))
    missing=set(fs);counter=[0]
    phase='MEDIA_IMPORT';_stage(phase);life.log('MEDIA_SYNC_BEGIN',expected=len(fs),directories=[str(d) for d in dirs]);imported=sum(m.sync(mp,master,d,missing,counter,len(missing)) for d in dirs);life.log('MEDIA_SYNC_END',expected=len(fs),accepted=imported)
    phase='MEDIA_VERIFY';_verify_media(mp,master,dirs,fs)
-   tn=m.nodate(name) or name;phase='TIMELINE';_create_timeline(mp,master,shoot,tn,True,intro_first=news_intro)
+   tn=m.nodate(name) or name;phase='TIMELINE';_create_timeline(mp,master,shoot,tn,True,intro_first=timeline_intro)
    phase='DELIVERY';_stage(phase);m.apply_deliver(pr,src,deliver_preset,deliver_folder)
    phase='SAVE';_stage(phase)
    if not pm.SaveProject():raise RuntimeError('SaveProject() selhal.')
