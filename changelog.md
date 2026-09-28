@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.29 - 28.09.2026
+
+- Fixed the updater local-change guard for Windows/network-drive checkouts where Git reports tracked CMD/PS1 launchers as modified only because the worktree uses CRLF and repository comparison uses normalized LF.
+- Safety checks now ignore end-of-line-only differences while still refusing to overwrite substantive local tracked source changes.
+- The updater explicitly reports when it is ignoring EOL normalization differences.
+
+
 ## 1.28 - 28.09.2026
 
 - Fixed the first-run updater guard after a proven fresh bootstrap. On some Windows/network-drive Git configurations, CRLF normalization can make newly checked-out CMD launchers appear modified immediately after checkout.
