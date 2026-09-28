@@ -70,7 +70,20 @@ def _deliver_ready(project,src,folder):
 def _status(project,base,missing,src,deliver_folder,shoot):
  timelines=_matching_timelines(project,base);return {'missing':len(missing),'timeline':bool(timelines),'voice':any(timeline_audio.is_prepared(t) for t in timelines),'deliver':_deliver_ready(project,src,deliver_folder)}
 def ask(project_name,status):raise RuntimeError('Update dialog was not initialized.')
-def _stage(name):life.put(stage=name);life.log('WORKFLOW_STAGE',stage=name)
+def _stage(name):
+ life.put(stage=name);life.log('WORKFLOW_STAGE',stage=name)
+ labels={'RESOLVE_CONNECT':'Připojuji DaVinci Resolve…','PROJECT_OPEN':'Otevírám Project Library…','PROJECT_CREATE':'Vytvářím projekt…','MEDIA_POOL':'Připravuji Media Pool…','MEDIA_IMPORT':'Importuji média…','MEDIA_VERIFY':'Ověřuji média…','TIMELINE':'Vytvářím timeline…','VOICE_ISOLATION':'Nastavuji Voice Isolation…','INTRO_MATCH':'Zpracovávám znělku…','DELIVERY':'Nastavuji DELIVERY…','SAVE':'Ukládám projekt…','FINAL_UI':'Připravuji EDIT stránku…','COMPLETE':'Hotovo'}
+ pct={'RESOLVE_CONNECT':5,'PROJECT_OPEN':12,'PROJECT_CREATE':18,'MEDIA_POOL':24,'MEDIA_IMPORT':30,'MEDIA_VERIFY':72,'TIMELINE':78,'VOICE_ISOLATION':84,'INTRO_MATCH':87,'DELIVERY':90,'SAVE':94,'FINAL_UI':97,'COMPLETE':100}
+ m.PROGRESS.stage(labels.get(name,name),pct.get(name))
+def _finish_resolve_ui(resolve,project,timeline):
+ _stage('FINAL_UI')
+ if timeline is None:timeline=project.GetCurrentTimeline()
+ current_ok=bool(project.SetCurrentTimeline(timeline)) if timeline is not None else False
+ page_ok=bool(resolve.OpenPage('edit'))
+ start_tc=timeline.GetStartTimecode() if timeline is not None else None
+ playhead_ok=bool(timeline.SetCurrentTimecode(start_tc)) if timeline is not None and start_tc else False
+ life.log('FINAL_UI_RESULT',current_timeline=current_ok,edit_page=page_ok,start_timecode=start_tc,playhead_start=playhead_ok)
+ return current_ok and page_ok and playhead_ok
 def _create_timeline(mp,master,shoot,name,voice,intro_reference=None,intro_first=None,title_path=None,credits_path=None,title_seconds=20,credits_seconds=25,fps=25):
  if _CREATOR is None:raise RuntimeError('Timeline creator není inicializován.')
  _stage('TIMELINE');timeline=_CREATOR(mp,master,shoot,name,intro_first,title_path,credits_path,title_seconds,credits_seconds,fps)
@@ -91,6 +104,7 @@ def build(query,keep):
  selected_title=timeline_assets.choose_title(name,_TITLE_SELECTOR)
  selected_intro=_select_intro(name)
  selected_credits=timeline_assets.find_credits();asset_cfg=timeline_assets.config()
+ m.PROGRESS.start(f'Připravuji projekt {name}')
  shoot=next((x for x in src.iterdir() if x.is_dir() and x.name.casefold()=='shooting'),src/'SHOOTING')
  if not shoot.is_dir():raise RuntimeError(f'Chybí SHOOTING: {shoot}')
  dirs=[shoot]+[d for dn in m.OPTIONAL for d in src.iterdir() if d.is_dir() and d.name.casefold()==dn.casefold()];fs={m.norm(p):p for d in dirs for p in m.allfiles(d)}
@@ -144,10 +158,11 @@ def build(query,keep):
    fps_raw=pr.GetSetting('timelineFrameRate') or pr.GetSetting('timelinePlaybackFrameRate') or '25'
    try:fps=float(str(fps_raw).replace(',','.'))
    except ValueError:fps=25.0
-   tn=m.nodate(name) or name;phase='TIMELINE';_create_timeline(mp,master,shoot,tn,True,intro_first=timeline_intro,title_path=timeline_title,credits_path=timeline_credits,title_seconds=asset_cfg['title_seconds'],credits_seconds=asset_cfg['credits_seconds'],fps=fps)
+   tn=m.nodate(name) or name;phase='TIMELINE';created_timeline=_create_timeline(mp,master,shoot,tn,True,intro_first=timeline_intro,title_path=timeline_title,credits_path=timeline_credits,title_seconds=asset_cfg['title_seconds'],credits_seconds=asset_cfg['credits_seconds'],fps=fps)
    phase='DELIVERY';_stage(phase);m.apply_deliver(pr,src,deliver_preset,deliver_folder)
    phase='SAVE';_stage(phase)
    if not pm.SaveProject():raise RuntimeError('SaveProject() selhal.')
+   _finish_resolve_ui(r,pr,created_timeline)
    life.log('PROJECT_CREATED',name=name,imported=imported,timeline=tn);print(f'[OK] Projekt vytvořen: {name} | Timeline: {tn} | Média: {imported}')
   else:
    phase='PROJECT_LOAD';_stage(phase);pr=pm.LoadProject(existing)
@@ -161,17 +176,18 @@ def build(query,keep):
      phase='MEDIA_IMPORT';_stage(phase);counter=[0];imported=sum(m.sync(mp,master,d,missing,counter,len(missing)) for d in dirs if any(m.norm(p) in missing for p in m.allfiles(d)));_verify_media(mp,master,dirs,fs);life.log('SYNC_DONE',imported=imported);print(f'[OK] Doplněno médií: {imported}');changed=True
     else:print('[OK] Repozitář je aktuální.')
    if actions['timeline']:
-    tn=_unique_timeline_name(pr,base);phase='TIMELINE';_create_timeline(mp,master,shoot,tn,actions['voice'],actions.get('intro_reference'));life.log('TIMELINE_UPDATE_CREATED',timeline=tn,voice=actions['voice'],intro_reference=actions.get('intro_reference'));print(f'[OK] Vytvořena timeline: {tn}');changed=True
+    tn=_unique_timeline_name(pr,base);phase='TIMELINE';created_timeline=_create_timeline(mp,master,shoot,tn,actions['voice'],actions.get('intro_reference'));life.log('TIMELINE_UPDATE_CREATED',timeline=tn,voice=actions['voice'],intro_reference=actions.get('intro_reference'));print(f'[OK] Vytvořena timeline: {tn}');changed=True
    if actions['deliver']:
     phase='DELIVERY';_stage(phase);m.apply_deliver(pr,src,deliver_preset,deliver_folder);changed=True
    if changed:
     phase='SAVE';_stage(phase)
     if not pm.SaveProject():raise RuntimeError('SaveProject() selhal.')
+    _finish_resolve_ui(r,pr,locals().get('created_timeline') or pr.GetCurrentTimeline())
    else:print('[OK] Nebyla vybrána žádná změna.')
   phase='COMPLETE';_stage(phase)
  except Exception as exc:
   life.log('WORKFLOW_ERROR',phase=phase,error=repr(exc),traceback=traceback.format_exc())
   raise
  finally:
-  life.put(busy=False,stage='Hotovo')
+  life.put(busy=False,stage='Hotovo');m.PROGRESS.stop('Hotovo')
  if 'r' in locals():m.finish(r,keep,alive)
