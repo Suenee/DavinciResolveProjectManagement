@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.31 - 28.09.2026
+
+- Fixed FFmpeg discovery immediately after WinGet installation. The updater no longer assumes the current PowerShell process receives WinGet's updated PATH.
+- FFmpeg discovery now checks user and machine WinGet command links and, as a fallback, searches the installed Gyan.FFmpeg package payload for `ffmpeg.exe`.
+- This allows dependency installation to complete in the same `upgrade.cmd` run without requiring a new terminal.
+- Kept the NumPy availability probe silent on Windows PowerShell 5.1.
+
+
 ## 1.30 - 28.09.2026
 
 - Fixed dependency probing on Windows PowerShell 5.1. A missing optional NumPy module is now tested with native stdout/stderr suppressed, so the expected import failure cannot leak into PowerShell's error stream and interrupt the upgrade before automatic installation.
