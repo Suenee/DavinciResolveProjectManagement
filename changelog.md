@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.32 - 28.09.2026
+
+- Replaced the single `[Paths] ProjectRoot` setting with ordered named project-root candidates. Keys are arbitrary unique labels; values are project root paths.
+- The application checks configured paths in INI order and uses the first path that currently exists, allowing the same configuration to work across computers with different drive mappings such as `D:` and `N:`.
+- Added shared project-root resolution for the managed workflow, project browser, and standalone Resolve project builder.
+- Settings now edits named path rows and requires unique names, complete name/path pairs, and at least one currently available root.
+- Existing `ProjectRoot` configurations are migrated automatically to a named `Legacy` entry without losing the configured path.
+- Network and mapped-drive paths remain supported.
+
+
 ## 1.31 - 28.09.2026
 
 - Fixed FFmpeg discovery immediately after WinGet installation. The updater no longer assumes the current PowerShell process receives WinGet's updated PATH.
