@@ -277,3 +277,6 @@ msgstr "Všechny soubory"
 
 msgid "Choose file…"
 msgstr "Vybrat soubor…"
+
+msgid "Progress — DavinciResolveProjectManagement 1.23"
+msgstr "Průběh — DavinciResolveProjectManagement 1.23"
