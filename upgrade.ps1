@@ -149,6 +149,8 @@ try {
     $sources=@('resolve_project_builder.py','managed_builder.py','managed_builder_runner.py','project_browser.py','project_update.py','project_update_dialog.py','ui_windows.py','timeline_audio.py','intro_fingerprint.py','intro_match_routing.py','intro_detection.py','resolve_lifecycle.py','resolve_gui.py','config_migrate.py','dependency_manager.py','verified_import.py','timeline_assets.py','i18n.py')
     $existing=@(); foreach($s in $sources){$p=Join-Path $Repo $s;if(Test-Path $p){$existing+=$p}else{Warn "Optional/expected source missing: $s"}}
     Run-Native $python (@('-m','py_compile')+$existing) | Out-Null
+    $smoke="import sys;sys.path.insert(0,r'$Repo');import i18n;assert i18n.resolve_language('en')=='en';assert i18n.resolve_language('cs')=='cs';import managed_builder,project_update,project_browser"
+    Run-Native $python @('-c',$smoke) | Out-Null
     $dvr="$env:PROGRAMDATA\Blackmagic Design\DaVinci Resolve\Support\Developer\Scripting\Modules\DaVinciResolveScript.py"
     if (Test-Path $dvr) { Ok 'DaVinci Resolve scripting module found.' } else { Warn "DaVinci Resolve scripting module not found at $dvr" }
 
