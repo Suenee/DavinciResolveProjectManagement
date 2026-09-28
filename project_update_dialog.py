@@ -71,3 +71,18 @@ def ask(project_name,status):
  def cancel(*_):result[0]=None;root.destroy()
  ttk.Button(buttons,text='OK',command=ok,width=12).pack(side='left',padx=6);ttk.Button(buttons,text='Cancel',command=cancel,width=12).pack(side='left',padx=6)
  root.bind('<Return>',ok);root.bind('<Escape>',cancel);root.protocol('WM_DELETE_WINDOW',cancel);m.center(root);root.focus_force();root.mainloop();return result[0]
+
+
+def choose_intro(project_name,intros):
+ result=[None]
+ root=tk.Tk();root.title('Výběr znělky');root.resizable(False,False)
+ frame=ttk.Frame(root,padding=16);frame.grid(row=0,column=0)
+ ttk.Label(frame,text=project_name,font=('Segoe UI',10,'bold')).grid(row=0,column=0,sticky='w',pady=(0,8))
+ ttk.Label(frame,text='Název projektu neodpovídá žádnému pravidlu. Vyber znělku:').grid(row=1,column=0,sticky='w',pady=(0,6))
+ names=['Bez znělky']+[p.name for p in intros];value=tk.StringVar(value=names[0])
+ combo=ttk.Combobox(frame,textvariable=value,values=names,state='readonly',width=38);combo.grid(row=2,column=0,sticky='ew',pady=(0,10))
+ buttons=ttk.Frame(frame);buttons.grid(row=3,column=0)
+ def ok(*_):
+  selected=value.get();result[0]=next((str(p) for p in intros if p.name==selected),None);root.destroy()
+ ttk.Button(buttons,text='OK',command=ok,width=12).pack()
+ root.bind('<Return>',ok);root.protocol('WM_DELETE_WINDOW',ok);m.center(root);root.focus_force();root.mainloop();return result[0]
