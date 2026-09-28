@@ -1,0 +1,57 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DavinciResolveProjectManagement 1.22\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "Cancelling…"
+msgstr "Cancelling…"
+
+msgid "Done"
+msgstr "Done"
+
+msgid "Preparing project {name}"
+msgstr "Preparing project {name}"
+
+msgid "Connecting to DaVinci Resolve…"
+msgstr "Connecting to DaVinci Resolve…"
+
+msgid "Opening Project Library…"
+msgstr "Opening Project Library…"
+
+msgid "Creating project…"
+msgstr "Creating project…"
+
+msgid "Preparing Media Pool…"
+msgstr "Preparing Media Pool…"
+
+msgid "Importing media…"
+msgstr "Importing media…"
+
+msgid "Verifying media…"
+msgstr "Verifying media…"
+
+msgid "Creating timeline…"
+msgstr "Creating timeline…"
+
+msgid "Setting Voice Isolation…"
+msgstr "Setting Voice Isolation…"
+
+msgid "Processing intro…"
+msgstr "Processing intro…"
+
+msgid "Setting DELIVERY…"
+msgstr "Setting DELIVERY…"
+
+msgid "Saving project…"
+msgstr "Saving project…"
+
+msgid "Preparing EDIT page…"
+msgstr "Preparing EDIT page…"
+
+msgid "Import media: {bin}"
+msgstr "Import media: {bin}"
