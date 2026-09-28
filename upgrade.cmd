@@ -5,12 +5,16 @@ cls
 rem Phase zero: immediately transfer execution to a temporary copy.
 rem Running another batch file without CALL transfers control, so the repository
 rem copy is never resumed after Git may replace it.
-if /I not "%~1"=="--drpm-temp" (
-  set "DRPM_BOOT=%TEMP%\DavinciResolveProjectManagement-bootstrap-%RANDOM%-%RANDOM%.cmd"
-  copy /y "%~f0" "%DRPM_BOOT%" >nul || exit /b 1
-  "%DRPM_BOOT%" --drpm-temp "%~dp0"
-)
+if /I "%~1"=="--drpm-temp" goto :DRPM_TEMP
 
+set "DRPM_BOOT=%TEMP%\DavinciResolveProjectManagement-bootstrap-%RANDOM%-%RANDOM%.cmd"
+copy /y "%~f0" "%DRPM_BOOT%" >nul || exit /b 1
+"%DRPM_BOOT%" --drpm-temp "%~dp0"
+set "DRPM_BOOT_RC=%ERRORLEVEL%"
+del /q "%DRPM_BOOT%" >nul 2>nul
+exit /b %DRPM_BOOT_RC%
+
+:DRPM_TEMP
 set "DRPM_REPO=%~2"
 if not defined DRPM_REPO (
   echo ERROR: Repository path was lost during bootstrap.
