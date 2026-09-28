@@ -277,3 +277,6 @@ msgstr "All files"
 
 msgid "Choose file…"
 msgstr "Choose file…"
+
+msgid "Progress — DavinciResolveProjectManagement 1.23"
+msgstr "Progress — DavinciResolveProjectManagement 1.23"
