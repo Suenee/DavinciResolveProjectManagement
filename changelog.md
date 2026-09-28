@@ -8,6 +8,7 @@
 - Added detailed Media Pool synchronization diagnostics for BIN creation/reuse, requested batch imports, and Resolve-accepted item counts.
 - Existing Resolve projects now log whether they are incomplete, including expected/present media counts and timeline, Voice Isolation, and DELIVERY readiness. This makes partially created projects recoverable through the normal update workflow.
 - Media verification remains a hard gate: later timeline, Voice Isolation, and DELIVERY automation does not continue until all expected media are present in the Media Pool.
+- Upgrade output now clearly shows the application name, installed version, target version, updater revision, target branch, and a final green version banner.
 
 ## 1.11 - 27.08.2026
 
