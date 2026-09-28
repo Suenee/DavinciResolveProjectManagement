@@ -12,6 +12,9 @@ if os.name == 'nt':
     SWP_NOSIZE = 0x0001
     SWP_NOACTIVATE = 0x0010
     HWND_TOP = 0
+    HWND_TOPMOST = -1
+    HWND_NOTOPMOST = -2
+    SW_RESTORE = 9
     user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
     user32.SetWindowPos.restype = wintypes.BOOL
 
@@ -90,26 +93,35 @@ def center_over_resolve(root):
     return None
 
 
-def place_above_resolve(root, resolve_hwnd=None):
-    """Raise the dialog in the normal Z-order without making it globally always-on-top."""
+def activate_window(root):
+    """Restore and foreground a Tk window without leaving it globally always-on-top."""
     try:
         root.update_idletasks()
         root.deiconify()
         root.lift()
         if os.name != 'nt':
-            return False
-        resolve_hwnd = resolve_hwnd or find_resolve_window()
-        if not resolve_hwnd:
-            return False
+            root.focus_force()
+            return True
         hwnd = int(root.winfo_id())
-        if not hwnd or hwnd == resolve_hwnd:
+        if not hwnd:
             return False
-        # Do not change GWLP_HWNDPARENT: that can let Windows reposition a Tk window.
-        user32.SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE)
+        if user32.IsIconic(hwnd):
+            user32.ShowWindow(hwnd, SW_RESTORE)
+        # A short TOPMOST pulse reliably moves the window above Resolve, then immediately
+        # returns it to the normal Z-order so it does not stay above unrelated applications.
+        user32.SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE)
+        user32.SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE)
+        user32.SetForegroundWindow(hwnd)
         root.lift()
+        root.focus_force()
         return True
     except Exception:
         return False
+
+
+def place_above_resolve(root, resolve_hwnd=None):
+    """Activate the window above Resolve while keeping normal long-term Z-order."""
+    return activate_window(root)
 
 
 def center_and_place_above_resolve(root):
