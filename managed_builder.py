@@ -140,14 +140,28 @@ def collect_clip_items(folder,out):
   except:path=''
   if path:out[norm(path)]=clip
  for sub in subs(folder):collect_clip_items(sub,out)
-def create_initial_timeline(mp,master,shoot,timeline_name,intro_path=None):
- shoot_bin=getbin(mp,master,shoot.name);clip_map={};collect_clip_items(shoot_bin,clip_map);ordered_files=shooting_order(shoot);ordered_clips=[]
+def _append_still(mp,timeline,item,seconds,fps,label):
+ frames=max(1,int(round(seconds*fps)));life.log('TIMELINE_STILL_APPEND_CALL',kind=label,seconds=seconds,frames=frames)
+ result=mp.AppendToTimeline([{'mediaPoolItem':item,'startFrame':0,'endFrame':frames-1}])
+ life.log('TIMELINE_STILL_APPEND_RETURN',kind=label,success=bool(result));return bool(result)
+def create_initial_timeline(mp,master,shoot,timeline_name,intro_path=None,title_path=None,credits_path=None,title_seconds=20,credits_seconds=25,fps=25):
+ shoot_bin=getbin(mp,master,shoot.name);clip_map={};collect_clip_items(shoot_bin,clip_map);ordered_files=shooting_order(shoot)
+ images_bin=getbin(mp,master,'IMAGES');image_map={};collect_clip_items(images_bin,image_map)
+ intro_clip=None
  if intro_path:
   intro_bin=getbin(mp,master,'INTRO');intro_map={};collect_clip_items(intro_bin,intro_map);intro_clip=intro_map.get(norm(intro_path))
-  if intro_clip is None:raise RuntimeError(f'Intro není v Media Poolu: {intro_path}')
-  ordered_clips.append(intro_clip);life.log('TIMELINE_INTRO_FIRST',timeline=timeline_name,file=str(intro_path))
- ordered_clips.extend(clip_map[norm(p)] for p in ordered_files if norm(p) in clip_map);timeline_bin=getbin(mp,master,'TIMELINES');mp.SetCurrentFolder(timeline_bin);timeline=mp.CreateTimelineFromClips(timeline_name,ordered_clips) if ordered_clips else mp.CreateEmptyTimeline(timeline_name)
+ timeline_bin=getbin(mp,master,'TIMELINES');mp.SetCurrentFolder(timeline_bin);timeline=mp.CreateEmptyTimeline(timeline_name)
  if timeline is None:raise RuntimeError(f'Nelze vytvořit timeline: {timeline_name}')
+ if title_path:
+  item=image_map.get(norm(title_path))
+  if item and not _append_still(mp,timeline,item,title_seconds,fps,'title'):life.log('TIMELINE_TITLE_SKIPPED',reason='append_failed',file=str(title_path))
+ if intro_clip:
+  life.log('TIMELINE_INTRO_APPEND_CALL',file=str(intro_path));r=mp.AppendToTimeline([intro_clip]);life.log('TIMELINE_INTRO_APPEND_RETURN',success=bool(r))
+ shooting=[clip_map[norm(p)] for p in ordered_files if norm(p) in clip_map]
+ if shooting:life.log('TIMELINE_SHOOTING_APPEND_CALL',clips=len(shooting));r=mp.AppendToTimeline(shooting);life.log('TIMELINE_SHOOTING_APPEND_RETURN',success=bool(r))
+ if credits_path:
+  item=image_map.get(norm(credits_path))
+  if item and not _append_still(mp,timeline,item,credits_seconds,fps,'credits'):life.log('TIMELINE_CREDITS_SKIPPED',reason='append_failed',file=str(credits_path))
  return timeline
 def apply_deliver(project,src,preset,folder):
  if not preset:return None
