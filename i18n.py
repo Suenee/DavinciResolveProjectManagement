@@ -19,10 +19,24 @@ def resolve_language(value=None):
  if value=='auto':value=_windows_language()
  return value if value in SUPPORTED else DEFAULT_LANGUAGE
 def available_languages():return ['auto']+list(SUPPORTED)
+def _po_translation(code):
+ path=LOCALE_DIR/code/'LC_MESSAGES'/f'{DOMAIN}.po'
+ if not path.exists():return gettext.NullTranslations()
+ messages={};msgid=None;msgstr=None
+ for raw in path.read_text(encoding='utf-8').splitlines():
+  line=raw.strip()
+  if line.startswith('msgid "'):msgid=line[7:-1];msgstr=None
+  elif line.startswith('msgstr "') and msgid is not None:
+   msgstr=line[8:-1]
+   if msgid:messages[msgid]=msgstr
+ class POTranslations(gettext.NullTranslations):
+  def gettext(self,message):return messages.get(message,message)
+ return POTranslations()
 def translation(language=None):
  code=resolve_language(language)
  if code=='en':return gettext.NullTranslations()
- return gettext.translation(DOMAIN,localedir=str(LOCALE_DIR),languages=[code],fallback=True)
+ try:return gettext.translation(DOMAIN,localedir=str(LOCALE_DIR),languages=[code],fallback=False)
+ except FileNotFoundError:return _po_translation(code)
 _current=translation()
 def set_language(language=None):
  global _current;_current=translation(language);return resolve_language(language)
