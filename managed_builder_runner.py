@@ -9,6 +9,8 @@ import project_update
 import project_update_dialog
 import project_browser
 import ui_windows
+import resolve_lifecycle as life
+import time
 
 _base_create_initial_timeline=managed_builder.create_initial_timeline
 _INSTANCE_PORT=47631
@@ -32,9 +34,16 @@ def _create_initial_timeline(mp,master,shoot,name,intro_first=None,title_path=No
 
 def _activate_current():
  root=_active_root
- if root is not None:
-  try:root.after(0,lambda:ui_windows.activate_window(root))
-  except Exception:pass
+ if root is None:
+  life.log('INSTANCE_ACTIVATE_NO_WINDOW');return
+ def activate():
+  try:
+   hwnd=int(root.winfo_id());life.log('INSTANCE_ACTIVATE_BEFORE',snapshot=ui_windows.zorder_snapshot(hwnd))
+   result=ui_windows.activate_window(root);life.log('INSTANCE_ACTIVATE_CALL_RETURN',success=bool(result))
+   root.after(180,lambda:life.log('INSTANCE_ACTIVATE_AFTER',snapshot=ui_windows.zorder_snapshot(hwnd)))
+  except Exception as e:life.log('INSTANCE_ACTIVATE_ERROR',error=repr(e))
+ try:root.after(0,activate)
+ except Exception as e:life.log('INSTANCE_ACTIVATE_SCHEDULE_ERROR',error=repr(e))
 
 
 def _instance_loop(server):
@@ -43,7 +52,8 @@ def _instance_loop(server):
    conn,_=server.accept()
    with conn:
     data=conn.recv(64)
-    if data.startswith(b'ACTIVATE'):_activate_current()
+    if data.startswith(b'ACTIVATE'):
+     life.log('INSTANCE_ACTIVATE_RECEIVED',bytes=len(data));_activate_current()
   except OSError:return
   except Exception:continue
 
@@ -53,13 +63,15 @@ def _claim_instance():
  if os.name!='nt':return True
  server=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
  try:
-  server.bind(('127.0.0.1',_INSTANCE_PORT));server.listen(2);_instance_server=server
+  server.bind(('127.0.0.1',_INSTANCE_PORT));server.listen(2);_instance_server=server;life.log('INSTANCE_PRIMARY_LISTENING',port=_INSTANCE_PORT)
   threading.Thread(target=_instance_loop,args=(server,),daemon=True).start()
   return True
- except OSError:
+ except OSError as bind_error:
+  life.log('INSTANCE_SECONDARY_DETECTED',port=_INSTANCE_PORT,error=repr(bind_error))
   try:
-   with socket.create_connection(('127.0.0.1',_INSTANCE_PORT),timeout=1.0) as client:client.sendall(b'ACTIVATE')
-  except OSError:pass
+   with socket.create_connection(('127.0.0.1',_INSTANCE_PORT),timeout=1.0) as client:
+    client.sendall(b'ACTIVATE');life.log('INSTANCE_ACTIVATE_SENT',port=_INSTANCE_PORT)
+  except OSError as e:life.log('INSTANCE_ACTIVATE_SEND_FAILED',port=_INSTANCE_PORT,error=repr(e))
   server.close();return False
 
 
