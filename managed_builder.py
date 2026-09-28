@@ -12,12 +12,20 @@ CONFIG=APP/'config.ini'; EXAMPLE=APP/'config.example.ini'; HISTORY=APP/'runtime'
 DATE=re.compile(r'^\d{8}\s+'); OPTIONAL=('IMAGES','PHOTOS','AUDIO')
 
 class ConsoleProgress:
- def __init__(self):self.stop_event=None;self.thread=None;self.started=0
+ def __init__(self):self.stop_event=None;self.thread=None;self.started=0;self.console_ok=True
+ def _write(self,text):
+  if not self.console_ok:return False
+  try:sys.stdout.write(text);sys.stdout.flush();return True
+  except (OSError,ValueError):
+   self.console_ok=False
+   try:life.log('CONSOLE_PROGRESS_DISABLED',reason='stdout unavailable')
+   except Exception:pass
+   return False
  def start(self,message):self.started=time.time()
  def stop(self,done=None):pass
  def bar(self,message,current,total):
-  ratio=current/total if total else 1;sys.stdout.write(f'\r{ratio*100:3.0f}% {message} {current}/{total}   ');sys.stdout.flush()
- def bar_done(self):sys.stdout.write('\n');sys.stdout.flush()
+  ratio=current/total if total else 1;self._write(f'\r{ratio*100:3.0f}% {message} {current}/{total}   ')
+ def bar_done(self):self._write('\n')
 PROGRESS=ConsoleProgress()
 
 def cfg():
@@ -74,9 +82,9 @@ def ensure(name,timeout):
  for attempt in (1,2):
   est=estimate(timeout);start=time.time();pid=life.start_headless(name)
   while time.time()-start<timeout:
-   elapsed=time.time()-start;pct=min(95,int(elapsed/max(est,1)*100));sys.stdout.write(f'\r{pct:3d}% Spouštím DaVinci Resolve... {int(elapsed)} s   ');sys.stdout.flush()
+   elapsed=time.time()-start;pct=min(95,int(elapsed/max(est,1)*100));PROGRESS._write(f'\r{pct:3d}% Spouštím DaVinci Resolve... {int(elapsed)} s   ')
    r=connect()
-   if r:save_sample(time.time()-start);sys.stdout.write('\r'+' '*100+'\r');return r
+   if r:save_sample(time.time()-start);PROGRESS._write('\r'+' '*100+'\r');return r
    if not life.pid_running(pid) and elapsed>5:break
    time.sleep(.5)
   life.force_stop_owned();time.sleep(5)
@@ -89,10 +97,11 @@ def subs(folder):
  except:return []
 def getbin(mp,parent,name):
  for s in subs(parent):
-  if (s.GetName() or '').casefold()==name.casefold():return s
+  if (s.GetName() or '').casefold()==name.casefold():
+   life.log('MEDIA_BIN_REUSE',name=name);return s
  b=mp.AddSubFolder(parent,name)
  if b is None:raise RuntimeError(f'Nelze vytvořit BIN {name}')
- return b
+ life.log('MEDIA_BIN_CREATED',name=name);return b
 def present(folder,out):
  try:clips=folder.GetClipList() or []
  except:clips=[]
@@ -104,7 +113,10 @@ def present(folder,out):
 def sync(mp,parent,d,missing,counter,total):
  b=getbin(mp,parent,d.name);mp.SetCurrentFolder(b);sel=[p for p in direct(d) if norm(p) in missing];n=0
  if sel:
-  x=mp.ImportMedia([str(p) for p in sel]);n+=len(x) if x else 0;counter[0]+=len(sel);PROGRESS.bar(f'Import médií: {d.name}',counter[0],total);PROGRESS.bar_done()
+  life.log('MEDIA_BATCH_IMPORT',bin=d.name,requested=len(sel),files=[str(p) for p in sel])
+  x=mp.ImportMedia([str(p) for p in sel]);accepted=len(x) if x else 0;n+=accepted;counter[0]+=len(sel)
+  life.log('MEDIA_BATCH_RESULT',bin=d.name,requested=len(sel),accepted=accepted)
+  PROGRESS.bar(f'Import médií: {d.name}',counter[0],total);PROGRESS.bar_done()
  for c in sorted([x for x in d.iterdir() if x.is_dir()],key=lambda p:p.name.casefold()):
   if any(norm(p) in missing for p in allfiles(c)):n+=sync(mp,b,c,missing,counter,total)
  return n
