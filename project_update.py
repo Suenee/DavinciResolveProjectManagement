@@ -200,7 +200,7 @@ def build(query,keep):
    phase='SAVE';_stage(phase)
    if not pm.SaveProject():raise RuntimeError('SaveProject() selhal.')
    _finish_resolve_ui(r,pr,created_timeline,shooting_frame,fps)
-   life.log('PROJECT_CREATED',name=name,imported=imported,timeline=(tn+' EDIT' if silence_requested else tn),silence_trim=silence_requested);print(f'[OK] Projekt vytvořen: {name} | Timeline: {(tn+\' EDIT\') if silence_requested else tn} | Média: {imported}')
+   result_tn=tn+' EDIT' if silence_requested else tn;life.log('PROJECT_CREATED',name=name,imported=imported,timeline=result_tn,silence_trim=silence_requested);print(f'[OK] Projekt vytvořen: {name} | Timeline: {result_tn} | Média: {imported}')
   else:
    phase='PROJECT_LOAD';_stage(phase);pr=pm.LoadProject(existing)
    if pr is None:raise RuntimeError(f'Existující projekt nelze otevřít: {existing}')
