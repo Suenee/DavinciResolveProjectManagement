@@ -12,7 +12,11 @@ CONFIG=APP/'config.ini'; EXAMPLE=APP/'config.example.ini'; HISTORY=APP/'runtime'
 DATE=re.compile(r'^\d{8}\s+'); OPTIONAL=('IMAGES','PHOTOS','AUDIO')
 
 class ConsoleProgress:
- def __init__(self):self.stop_event=None;self.thread=None;self.started=0;self.console_ok=True
+ def __init__(self):self.root=None;self.status=None;self.detail=None;self.progress=None;self.console_ok=True
+ def _pump(self):
+  if self.root is not None:
+   try:self.root.update_idletasks();self.root.update()
+   except tk.TclError:self.root=None
  def _write(self,text):
   if not self.console_ok:return False
   try:sys.stdout.write(text);sys.stdout.flush();return True
@@ -21,11 +25,34 @@ class ConsoleProgress:
    try:life.log('CONSOLE_PROGRESS_DISABLED',reason='stdout unavailable')
    except Exception:pass
    return False
- def start(self,message):self.started=time.time()
- def stop(self,done=None):pass
+ def start(self,message):
+  try:
+   self.root=tk.Tk();self.root.title('Průběh — DavinciResolveProjectManagement 1.21');self.root.resizable(False,False)
+   box=ttk.Frame(self.root,padding=18);box.pack();self.status=tk.StringVar(value=message);self.detail=tk.StringVar(value='')
+   ttk.Label(box,textvariable=self.status,font=('Segoe UI',11,'bold')).pack(anchor='w')
+   ttk.Label(box,textvariable=self.detail).pack(anchor='w',pady=(5,8))
+   self.progress=ttk.Progressbar(box,length=460,maximum=100,mode='determinate');self.progress.pack()
+   center(self.root);self._pump();life.log('GUI_PROGRESS_OPEN')
+  except Exception as e:life.log('GUI_PROGRESS_OPEN_ERROR',error=repr(e));self.root=None
+ def stage(self,message,percent=None):
+  if self.root is None:return
+  self.status.set(message)
+  if percent is not None:self.progress['value']=max(0,min(100,float(percent)))
+  self._pump()
+ def stop(self,done='Hotovo'):
+  if self.root is None:return
+  try:self.status.set(done or 'Hotovo');self.progress['value']=100;self._pump();self.root.destroy()
+  except tk.TclError:pass
+  self.root=None
  def bar(self,message,current,total):
-  ratio=current/total if total else 1;self._write(f'\r{ratio*100:3.0f}% {message} {current}/{total}   ')
- def bar_done(self):self._write('\n')
+  ratio=current/total if total else 1
+  if self.root is not None:
+   self.status.set(message);self.detail.set(f'{current} / {total}');self.progress['value']=max(0,min(100,ratio*100));self._pump()
+  else:self._write(f'\r{ratio*100:3.0f}% {message} {current}/{total}   ')
+ def bar_done(self):
+  if self.root is None:self._write('\n')
+ def set_percent(self,message,percent):
+  self.stage(message,percent)
 PROGRESS=ConsoleProgress()
 
 def cfg():
@@ -82,9 +109,9 @@ def ensure(name,timeout):
  for attempt in (1,2):
   est=estimate(timeout);start=time.time();pid=life.start_headless(name)
   while time.time()-start<timeout:
-   elapsed=time.time()-start;pct=min(95,int(elapsed/max(est,1)*100));PROGRESS._write(f'\r{pct:3d}% Spouštím DaVinci Resolve... {int(elapsed)} s   ')
+   elapsed=time.time()-start;pct=min(95,int(elapsed/max(est,1)*100));PROGRESS.set_percent('Spouštím DaVinci Resolve…',pct)
    r=connect()
-   if r:save_sample(time.time()-start);PROGRESS._write('\r'+' '*100+'\r');return r
+   if r:save_sample(time.time()-start);PROGRESS.set_percent('DaVinci Resolve připojen',100);return r
    if not life.pid_running(pid) and elapsed>5:break
    time.sleep(.5)
   life.force_stop_owned();time.sleep(5)
@@ -141,9 +168,26 @@ def collect_clip_items(folder,out):
   if path:out[norm(path)]=clip
  for sub in subs(folder):collect_clip_items(sub,out)
 def _append_still(mp,timeline,item,seconds,fps,label):
- frames=max(1,int(round(seconds*fps)));life.log('TIMELINE_STILL_APPEND_CALL',kind=label,seconds=seconds,frames=frames)
- result=mp.AppendToTimeline([{'mediaPoolItem':item,'startFrame':0,'endFrame':frames-1}])
- life.log('TIMELINE_STILL_APPEND_RETURN',kind=label,success=bool(result));return bool(result)
+ frames=max(1,int(round(seconds*fps)))
+ try:before=item.GetMarkInOut() or {}
+ except Exception:before={}
+ life.log('TIMELINE_STILL_MARK_CALL',kind=label,seconds=seconds,frames=frames,before=before)
+ try:mark_ok=bool(item.SetMarkInOut(0,frames-1,'video'))
+ except Exception as e:mark_ok=False;life.log('TIMELINE_STILL_MARK_ERROR',kind=label,error=repr(e))
+ try:marked=item.GetMarkInOut() or {}
+ except Exception:marked={}
+ life.log('TIMELINE_STILL_MARK_RETURN',kind=label,success=mark_ok,marked=marked)
+ life.log('TIMELINE_STILL_APPEND_CALL',kind=label,seconds=seconds,frames=frames,method='MediaPoolItem.SetMarkInOut + plain AppendToTimeline')
+ result=mp.AppendToTimeline([item])
+ timeline_item=(result[-1] if isinstance(result,(list,tuple)) and result else None)
+ try:actual=int(round(float(timeline_item.GetDuration()))) if timeline_item is not None else None
+ except Exception:actual=None
+ try:item.ClearMarkInOut('video')
+ except Exception:pass
+ verified=(actual==frames)
+ life.log('TIMELINE_STILL_APPEND_RETURN',kind=label,success=bool(result),requested_frames=frames,actual_frames=actual,verified=verified)
+ if result and not verified:life.log('TIMELINE_STILL_DURATION_MISMATCH',kind=label,requested_frames=frames,actual_frames=actual)
+ return bool(result)
 def create_initial_timeline(mp,master,shoot,timeline_name,intro_path=None,title_path=None,credits_path=None,title_seconds=20,credits_seconds=25,fps=25):
  shoot_bin=getbin(mp,master,shoot.name);clip_map={};collect_clip_items(shoot_bin,clip_map);ordered_files=shooting_order(shoot)
  images_bin=getbin(mp,master,'IMAGES');image_map={};collect_clip_items(images_bin,image_map)
