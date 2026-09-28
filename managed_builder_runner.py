@@ -66,6 +66,7 @@ def _claim_instance():
 managed_builder.center=_center_above_resolve
 managed_builder.choose=_choose
 project_update.ask=project_update_dialog.ask
+project_update.set_intro_selector(project_update_dialog.choose_intro)
 project_update.set_timeline_creator(_create_initial_timeline)
 managed_builder.build=project_update.build
 
