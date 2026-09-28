@@ -55,3 +55,165 @@ msgstr "Preparing EDIT page…"
 
 msgid "Import media: {bin}"
 msgstr "Import media: {bin}"
+
+msgid "New project — DavinciResolveProjectManagement 1.23"
+msgstr "New project — DavinciResolveProjectManagement 1.23"
+
+msgid "Project name:"
+msgstr "Project name:"
+
+msgid "Is the project name correct?"
+msgstr "Is the project name correct?"
+
+msgid "The name must start with a valid YYYYMMDD date."
+msgstr "The name must start with a valid YYYYMMDD date."
+
+msgid "The project name already exists."
+msgstr "The project name already exists."
+
+msgid "Cannot create project: {error}"
+msgstr "Cannot create project: {error}"
+
+msgid "Open media folder"
+msgstr "Open media folder"
+
+msgid "Open"
+msgstr "Open"
+
+msgid "No supported media files were found in the selected folder."
+msgstr "No supported media files were found in the selected folder."
+
+msgid "Found {count} media files.\\n\\nMove them to the standard project folder?"
+msgstr "Found {count} media files.\\n\\nMove them to the standard project folder?"
+
+msgid "The destination folder is not writable."
+msgstr "The destination folder is not writable."
+
+msgid "There is not enough free space on the destination drive."
+msgstr "There is not enough free space on the destination drive."
+
+msgid "Move media"
+msgstr "Move media"
+
+msgid "Preparing move…"
+msgstr "Preparing move…"
+
+msgid "Destination file already exists: {path}"
+msgstr "Destination file already exists: {path}"
+
+msgid "The move was safely stopped.\\n\\n{error}"
+msgstr "The move was safely stopped.\\n\\n{error}"
+
+msgid "Settings — DavinciResolveProjectManagement 1.23"
+msgstr "Settings — DavinciResolveProjectManagement 1.23"
+
+msgid "Language"
+msgstr "Language"
+
+msgid "UI Language:"
+msgstr "UI Language:"
+
+msgid "Automatic (Windows)"
+msgstr "Automatic (Windows)"
+
+msgid "Czech"
+msgstr "Czech"
+
+msgid "English"
+msgstr "English"
+
+msgid "Project"
+msgstr "Project"
+
+msgid "Project root"
+msgstr "Project root"
+
+msgid "Select Resolve.exe"
+msgstr "Select Resolve.exe"
+
+msgid "Folder"
+msgstr "Folder"
+
+msgid "Logging"
+msgstr "Logging"
+
+msgid "Mode:"
+msgstr "Mode:"
+
+msgid "Clean audio track:"
+msgstr "Clean audio track:"
+
+msgid "Audio track name"
+msgstr "Audio track name"
+
+msgid "Title image / End credits"
+msgstr "Title image / End credits"
+
+msgid "Title duration (s)"
+msgstr "Title duration (s)"
+
+msgid "TOP candidates"
+msgstr "TOP candidates"
+
+msgid "Year boundary (days)"
+msgstr "Year boundary (days)"
+
+msgid "End credits file"
+msgstr "End credits file"
+
+msgid "End credits duration (s)"
+msgstr "End credits duration (s)"
+
+msgid "Intro"
+msgstr "Intro"
+
+msgid "Intro folder"
+msgstr "Intro folder"
+
+msgid "Search window (min)"
+msgstr "Search window (min)"
+
+msgid "Min. confidence (%)"
+msgstr "Min. confidence (%)"
+
+msgid "Settings"
+msgstr "Settings"
+
+msgid "Project root must be an existing folder."
+msgstr "Project root must be an existing folder."
+
+msgid "Intro folder must be an existing folder."
+msgstr "Intro folder must be an existing folder."
+
+msgid "Titles must contain the %Y placeholder."
+msgstr "Titles must contain the %Y placeholder."
+
+msgid "Resolve EXE must point to Resolve.exe."
+msgstr "Resolve EXE must point to Resolve.exe."
+
+msgid "Project Library and DELIVERY must be valid relative names."
+msgstr "Project Library and DELIVERY must be valid relative names."
+
+msgid "Projects — DavinciResolveProjectManagement 1.23"
+msgstr "Projects — DavinciResolveProjectManagement 1.23"
+
+msgid "Created"
+msgstr "Created"
+
+msgid "No project found."
+msgstr "No project found."
+
+msgid "Settings cannot be opened.\\n\\n{error}"
+msgstr "Settings cannot be opened.\\n\\n{error}"
+
+msgid "New..."
+msgstr "New..."
+
+msgid "Open..."
+msgstr "Open..."
+
+msgid "Settings..."
+msgstr "Settings..."
+
+msgid "Exit"
+msgstr "Exit"
