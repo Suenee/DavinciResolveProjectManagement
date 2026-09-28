@@ -228,9 +228,8 @@ def create_initial_timeline(mp,master,shoot,timeline_name,intro_path=None,title_
  if credits_path:
   item=image_map.get(norm(credits_path))
   if item and not _append_still(mp,timeline,item,credits_seconds,fps,'credits'):life.log('TIMELINE_CREDITS_SKIPPED',reason='append_failed',file=str(credits_path))
- try:setattr(timeline,'_drpm_first_shooting_frame',first_shooting_frame)
- except Exception:pass
- return timeline
+ life.log('TIMELINE_READY',first_shooting_frame=first_shooting_frame)
+ return timeline,first_shooting_frame
 def apply_deliver(project,src,preset,folder):
  if not preset:return None
  target=(src/folder).resolve();target.mkdir(parents=True,exist_ok=True)
