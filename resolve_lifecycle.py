@@ -14,12 +14,12 @@ def log_mode():
 def log(event,**data):
  mode=log_mode()
  if mode=='off':return
- LOG_DIR.mkdir(parents=True,exist_ok=True); path=LOG_DIR/'latest.log' if mode=='single' else LOG_DIR/'history.log'; line=datetime.now().strftime('%d.%m.%Y %H:%M:%S.%f')[:-3]+' '+event
+ LOG_DIR.mkdir(parents=True,exist_ok=True); path=APP_LOG; line=datetime.now().strftime('%d.%m.%Y %H:%M:%S.%f')[:-3]+' '+event
  if data:line+=' '+json.dumps(data,ensure_ascii=False,default=str)
  with path.open('a',encoding='utf-8') as f:f.write(line+'\n')
 def begin_log_session(command='',project=''):
  if log_mode()=='single':
-  LOG_DIR.mkdir(parents=True,exist_ok=True); (LOG_DIR/'latest.log').write_text('',encoding='utf-8')
+  LOG_DIR.mkdir(parents=True,exist_ok=True); APP_LOG.write_text('',encoding='utf-8')
  log('SESSION_START',computer=os.environ.get('COMPUTERNAME','UNKNOWN'),command=command,project=project)
 def state():
  try:return json.loads(STATE_FILE.read_text(encoding='utf-8'))
