@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.16 - 28.09.2026
+
+- Added configurable case-insensitive regular-expression intro mapping in `[IntroMapping]`; intro filenames are INI keys and project-name regular expressions are values.
+- Default mappings select `UFO Disclosure.mp4` for `Zprávy z Exopolitiky`, `Spirituality.mp4` for names containing `spirit`, and `Exopolitics.mp4` for other UFO/exopolitics names.
+- Mapping rules are evaluated in configuration order; the first matching rule wins.
+- Invalid regular expressions are logged and skipped without stopping the workflow.
+- If no mapping matches, the application shows the intro files currently present in `IntroDetection.Folder` and also offers `Bez znělky`.
+- Missing or Resolve-rejected intro media are now logged and skipped; project initialization continues without the intro.
+- Intro selection remains drive-independent through `IntroDetection.Folder`.
+
 ## 1.15 - 28.09.2026
 
 - Added call/return diagnostics for Media Pool BIN lookup/creation, current-folder changes, directory synchronization, and media imports so a blocking Resolve API call can be identified from the last log event.
