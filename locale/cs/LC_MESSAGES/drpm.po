@@ -55,3 +55,165 @@ msgstr "Připravuji EDIT stránku…"
 
 msgid "Import media: {bin}"
 msgstr "Import médií: {bin}"
+
+msgid "New project — DavinciResolveProjectManagement 1.23"
+msgstr "Nový projekt — DavinciResolveProjectManagement 1.23"
+
+msgid "Project name:"
+msgstr "Název projektu:"
+
+msgid "Is the project name correct?"
+msgstr "Souhlasí název projektu?"
+
+msgid "The name must start with a valid YYYYMMDD date."
+msgstr "Název musí začínat platným datem RRRRMMDD."
+
+msgid "The project name already exists."
+msgstr "Název projektu již existuje."
+
+msgid "Cannot create project: {error}"
+msgstr "Projekt nelze vytvořit: {error}"
+
+msgid "Open media folder"
+msgstr "Otevřít adresář s médii"
+
+msgid "Open"
+msgstr "Otevřít"
+
+msgid "No supported media files were found in the selected folder."
+msgstr "Ve vybraném adresáři nebyly nalezeny podporované mediální soubory."
+
+msgid "Found {count} media files.\\n\\nMove them to the standard project folder?"
+msgstr "Nalezeno {count} mediálních souborů.\\n\\nPřesunout je do standardního projektového adresáře?"
+
+msgid "The destination folder is not writable."
+msgstr "Cílový adresář není dostupný pro zápis."
+
+msgid "There is not enough free space on the destination drive."
+msgstr "Na cílovém disku není dostatek volného místa."
+
+msgid "Move media"
+msgstr "Přesun médií"
+
+msgid "Preparing move…"
+msgstr "Připravuji přesun…"
+
+msgid "Destination file already exists: {path}"
+msgstr "Cílový soubor již existuje: {path}"
+
+msgid "The move was safely stopped.\\n\\n{error}"
+msgstr "Přesun byl bezpečně zastaven.\\n\\n{error}"
+
+msgid "Settings — DavinciResolveProjectManagement 1.23"
+msgstr "Nastavení — DavinciResolveProjectManagement 1.23"
+
+msgid "Language"
+msgstr "Jazyk"
+
+msgid "UI Language:"
+msgstr "Jazyk prostředí:"
+
+msgid "Automatic (Windows)"
+msgstr "Automaticky (Windows)"
+
+msgid "Czech"
+msgstr "Čeština"
+
+msgid "English"
+msgstr "English"
+
+msgid "Project"
+msgstr "Projekt"
+
+msgid "Project root"
+msgstr "Projektový kořen"
+
+msgid "Select Resolve.exe"
+msgstr "Vyber Resolve.exe"
+
+msgid "Folder"
+msgstr "Adresář"
+
+msgid "Logging"
+msgstr "Logování"
+
+msgid "Mode:"
+msgstr "Režim:"
+
+msgid "Clean audio track:"
+msgstr "Čistá audio stopa:"
+
+msgid "Audio track name"
+msgstr "Název audio stopy"
+
+msgid "Title image / End credits"
+msgstr "Titulní obrázek / End credits"
+
+msgid "Title duration (s)"
+msgstr "Délka titulku (s)"
+
+msgid "TOP candidates"
+msgstr "TOP kandidátů"
+
+msgid "Year boundary (days)"
+msgstr "Přelom roku (dnů)"
+
+msgid "End credits file"
+msgstr "Soubor end credits"
+
+msgid "End credits duration (s)"
+msgstr "Délka end credits (s)"
+
+msgid "Intro"
+msgstr "Znělka"
+
+msgid "Intro folder"
+msgstr "Adresář znělek"
+
+msgid "Search window (min)"
+msgstr "Okno hledání (min)"
+
+msgid "Min. confidence (%)"
+msgstr "Min. confidence (%)"
+
+msgid "Settings"
+msgstr "Nastavení"
+
+msgid "Project root must be an existing folder."
+msgstr "Projektový kořen musí být existující adresář."
+
+msgid "Intro folder must be an existing folder."
+msgstr "Adresář znělek musí být existující adresář."
+
+msgid "Titles must contain the %Y placeholder."
+msgstr "Titles musí obsahovat placeholder %Y."
+
+msgid "Resolve EXE must point to Resolve.exe."
+msgstr "Resolve EXE musí ukazovat na Resolve.exe."
+
+msgid "Project Library and DELIVERY must be valid relative names."
+msgstr "Project Library a DELIVERY musí být platné relativní názvy."
+
+msgid "Projects — DavinciResolveProjectManagement 1.23"
+msgstr "Projekty — DavinciResolveProjectManagement 1.23"
+
+msgid "Created"
+msgstr "Vytvořeno"
+
+msgid "No project found."
+msgstr "Nenalezen žádný projekt."
+
+msgid "Settings cannot be opened.\\n\\n{error}"
+msgstr "Nastavení nelze otevřít.\\n\\n{error}"
+
+msgid "New..."
+msgstr "Nový..."
+
+msgid "Open..."
+msgstr "Otevřít..."
+
+msgid "Settings..."
+msgstr "Nastavení..."
+
+msgid "Exit"
+msgstr "Konec"
