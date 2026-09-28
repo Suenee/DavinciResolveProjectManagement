@@ -1,8 +1,8 @@
 $ErrorActionPreference = 'Stop'
 $Repo = $env:DRPM_REPO
 $TargetBranch = if ($env:DRPM_BRANCH) { $env:DRPM_BRANCH } else { 'main' }
-$RunnerRevision = '1.11-ui-zorder-settings'
-$TargetVersion = '1.19'
+$RunnerRevision = '1.12-zorder-diagnostics'
+$TargetVersion = '1.20'
 $CurrentVersion = 'unknown'
 if (-not $Repo) { $Repo = Split-Path -Parent $MyInvocation.MyCommand.Path }
 $Repo = [System.IO.Path]::GetFullPath($Repo).TrimEnd('\')
