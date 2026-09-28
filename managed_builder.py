@@ -65,13 +65,30 @@ class ConsoleProgress:
   self.status.set(message)
   if percent is not None:self.progress['value']=max(0,min(100,float(percent)))
   self._pump();self.ensure_visible('STAGE')
- def stop(self,done=None,success=True):
+ def _close(self):
   if self.root is None:return
-  try:
-   if success:self.status.set(done or _('Done'));self.progress['value']=100
-   self._pump();self.root.destroy()
+  try:self.root.destroy()
   except tk.TclError:pass
   self.root=None
+ def stop(self,done=None,success=True):
+  if self.root is None:return
+  if not success:
+   self._pump();return
+  try:
+   self.status.set(done or _('Done'));self.detail.set('');self.progress['value']=100
+   self.cancel_button.configure(state='normal',command=self._close)
+   self.root.protocol('WM_DELETE_WINDOW',self._close)
+   self.ensure_visible('COMPLETE')
+   life.log('PROGRESS_COMPLETE_HOLD',seconds=5)
+   for remaining in range(5,0,-1):
+    if self.root is None:return
+    self.cancel_button.configure(text=_('Close ({seconds}s)').format(seconds=remaining))
+    end=time.monotonic()+1
+    while self.root is not None and time.monotonic()<end:
+     self._pump();time.sleep(.05)
+   if self.root is not None:
+    life.log('PROGRESS_COMPLETE_AUTO_CLOSE');self._close()
+  except tk.TclError:self.root=None
  def bar(self,message,current,total):
   self.check_cancel();ratio=current/total if total else 1
   if self.root is not None:
