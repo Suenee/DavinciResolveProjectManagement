@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.25 - 28.09.2026
+
+- Fixed a regression where launching `run.cmd` again detected the existing instance but could fail to bring its current window to the foreground.
+- Single-instance activation now performs a second foreground activation pulse after the initial request, matching the proven delayed activation strategy used elsewhere in the UI.
+- Added recovery of the currently visible Tk window when the cached active-window reference is no longer available.
+- The active-window reference is cleared when its root window is destroyed instead of retaining a stale Tk object.
+- Added `INSTANCE_ACTIVATE_WINDOW_RECOVERED`, `INSTANCE_ACTIVATE_RETRY_RETURN`, and `INSTANCE_ACTIVATE_RETRY_ERROR` diagnostics.
+
 ## 1.24 - 28.09.2026
 
 - Successful workflow completion now keeps the 100% progress window visible for five seconds so the final Done state can be read.
