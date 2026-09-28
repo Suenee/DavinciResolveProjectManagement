@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.13 - 28.09.2026
+
+- Added single-instance protection for the project-management launcher on Windows.
+- Starting `run.cmd` while an existing instance is active now signals that instance to restore and move its current window to the foreground instead of opening a duplicate application instance.
+- Reworked Windows foreground activation to restore minimized windows and use a temporary TOPMOST pulse followed by normal Z-order and foreground activation.
+- Project windows are not left permanently always-on-top; the TOPMOST state is used only to overcome DaVinci Resolve Z-order when activating the UI.
+
 ## 1.12 - 28.09.2026
 
 - Fixed a fatal Windows console progress error where `sys.stdout.flush()` could raise `OSError(22, 'Invalid argument')` and abort project initialization during media import.
