@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.33 - 28.09.2026
+
+- Fixed startup failure in the managed workflow caused by the missing `active_root` import after the multi-root path migration.
+- The managed builder now imports the shared project-path resolver used by its configuration loader.
+
+
 ## 1.32 - 28.09.2026
 
 - Replaced the single `[Paths] ProjectRoot` setting with ordered named project-root candidates. Keys are arbitrary unique labels; values are project root paths.
