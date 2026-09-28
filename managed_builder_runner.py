@@ -4,6 +4,7 @@ import ctypes
 import os
 import socket
 import threading
+import tkinter as tk
 import managed_builder
 import project_update
 import project_update_dialog
@@ -22,6 +23,29 @@ def _center_above_resolve(root):
  global _active_root
  _active_root=root
  ui_windows.center_and_place_above_resolve(root)
+ try:
+  root.bind('<Destroy>',lambda e:_clear_active_root(root) if e.widget is root else None,add='+')
+ except Exception:pass
+
+def _clear_active_root(root):
+ global _active_root
+ if _active_root is root:_active_root=None
+
+def _find_active_tk_window():
+ candidates=[]
+ try:
+  default=tk._default_root
+  if default is not None and default.winfo_exists():candidates.append(default)
+ except Exception:pass
+ for widget in list(candidates):
+  try:candidates.extend([x for x in widget.winfo_children() if isinstance(x,(tk.Tk,tk.Toplevel)) and x.winfo_exists()])
+  except Exception:pass
+ visible=[]
+ for win in candidates:
+  try:
+   if win.winfo_viewable():visible.append(win)
+  except Exception:pass
+ return visible[-1] if visible else (candidates[-1] if candidates else None)
 
 
 def _choose(candidates,query):
@@ -35,12 +59,20 @@ def _create_initial_timeline(mp,master,shoot,name,intro_first=None,title_path=No
 def _activate_current():
  root=_active_root
  if root is None:
+  root=_find_active_tk_window()
+  life.log('INSTANCE_ACTIVATE_WINDOW_RECOVERED',found=bool(root))
+ if root is None:
   life.log('INSTANCE_ACTIVATE_NO_WINDOW');return
  def activate():
   try:
    hwnd=int(root.winfo_id());life.log('INSTANCE_ACTIVATE_BEFORE',snapshot=ui_windows.zorder_snapshot(hwnd))
    result=ui_windows.activate_window(root);life.log('INSTANCE_ACTIVATE_CALL_RETURN',success=bool(result))
-   root.after(180,lambda:life.log('INSTANCE_ACTIVATE_AFTER',snapshot=ui_windows.zorder_snapshot(hwnd)))
+   def retry():
+    try:
+     second=ui_windows.activate_window(root);life.log('INSTANCE_ACTIVATE_RETRY_RETURN',success=bool(second),snapshot=ui_windows.zorder_snapshot(hwnd))
+    except Exception as e:life.log('INSTANCE_ACTIVATE_RETRY_ERROR',error=repr(e))
+   root.after(180,retry)
+   root.after(420,lambda:life.log('INSTANCE_ACTIVATE_AFTER',snapshot=ui_windows.zorder_snapshot(hwnd)))
   except Exception as e:life.log('INSTANCE_ACTIVATE_ERROR',error=repr(e))
  try:root.after(0,activate)
  except Exception as e:life.log('INSTANCE_ACTIVATE_SCHEDULE_ERROR',error=repr(e))
