@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.26 - 28.09.2026
+
+- Added an authoritative root `VERSION` file and updated the upgrader to report the installed and target application versions from repository state instead of a duplicated hard-coded application version.
+- Reworked `upgrade.cmd` into a temporary bootstrap that supports a fresh directory containing only the downloaded launcher, mapped/network paths, process-scoped Git `safe.directory`, and checkout of `origin/main`.
+- The fresh bootstrap removes only the proven untracked `upgrade.cmd` collision before checkout; arbitrary untracked files are never cleaned.
+- Renamed the PowerShell Git wrapper to `Invoke-Git` to avoid Windows PowerShell's case-insensitive command-name recursion trap documented by the shared upgrade protocol.
+- Added the optional Silence Trim layer to Settings with configurable 30 s edge search, -40 dBFS threshold, 0.20 s minimum stable sound, 0.75 s pre-speech space, and 1.00 s post-speech space.
+- New Resolve projects ask whether edge silence should be removed only when Silence Trim is enabled. The question is presented after title-image and intro selection.
+- When selected, the workflow analyzes only the beginning and end of each SHOOTING source and creates two timelines: an untouched `RAW` timeline and an `EDIT` timeline assembled from source in/out ranges.
+- The EDIT timeline uses Resolve MediaPool `AppendToTimeline` source ranges, so source media remains untouched and edit points retain source handles for manual correction.
+- Internal speech pauses are never removed. Unsafe or unanalyzable clips fall back to their full source range.
+- Added per-clip silence-analysis and applied-range diagnostics to the application log.
+
+
 ## 1.25 - 28.09.2026
 
 - Fixed a regression where launching `run.cmd` again detected the existing instance but could fail to bring its current window to the foreground.
