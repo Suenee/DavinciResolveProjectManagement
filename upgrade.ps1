@@ -1,8 +1,8 @@
 $ErrorActionPreference = 'Stop'
 $Repo = $env:DRPM_REPO
 $TargetBranch = if ($env:DRPM_BRANCH) { $env:DRPM_BRANCH } else { 'main' }
-$RunnerRevision = '1.17-single-instance-foreground'
-$TargetVersion = '1.25'
+$RunnerRevision = '1.18-fresh-bootstrap'
+$TargetVersion = 'unknown'
 $CurrentVersion = 'unknown'
 if (-not $Repo) { $Repo = Split-Path -Parent $MyInvocation.MyCommand.Path }
 $Repo = [System.IO.Path]::GetFullPath($Repo).TrimEnd('\')
@@ -28,7 +28,7 @@ function Run-Native([string]$Exe,[string[]]$NativeArgs,[switch]$AllowFailure) {
     if ($code -ne 0 -and -not $AllowFailure) { Fail "$Exe failed with exit code $code" }
     return $code
 }
-function Git([string[]]$GitArgs,[switch]$AllowFailure) { return Run-Native 'git.exe' $GitArgs -AllowFailure:$AllowFailure }
+function Invoke-Git([string[]]$GitArgs,[switch]$AllowFailure) { return Run-Native 'git.exe' $GitArgs -AllowFailure:$AllowFailure }
 function Find-Python {
     foreach ($name in @('python.exe','python3.exe')) {
         $cmd=Get-Command $name -ErrorAction SilentlyContinue
@@ -59,10 +59,14 @@ try {
     if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) { Fail 'Git was not found.' }
     $startCommit = (& git.exe rev-parse HEAD 2>$null)
     try {
-        $oldUpgrade = & git.exe show "HEAD:upgrade.ps1" 2>$null
-        $oldVersionLine = $oldUpgrade | Select-String -Pattern "\$(?:TargetVersion|AppVersion)\s*=\s*'([^']+)'" | Select-Object -First 1
-        if ($oldVersionLine -and $oldVersionLine.Matches.Count -gt 0) { $CurrentVersion=$oldVersionLine.Matches[0].Groups[1].Value }
+        $localVersionFile=Join-Path $Repo 'VERSION'
+        if (Test-Path $localVersionFile) { $CurrentVersion=(Get-Content -LiteralPath $localVersionFile -Raw).Trim() }
     } catch {}
+    try {
+        $remoteVersion=(& git.exe show "origin/${TargetBranch}:VERSION" 2>$null)
+        if ($LASTEXITCODE -eq 0 -and $remoteVersion) { $TargetVersion=($remoteVersion | Select-Object -First 1).Trim() }
+    } catch {}
+    if ($TargetVersion -eq 'unknown') { Fail "Cannot determine target application version from origin/${TargetBranch}:VERSION" }
     Info "Application: DaVinci Resolve Project Management"
     if ($CurrentVersion -eq $TargetVersion) { Info ("Current:     {0} / Target: {1} - already current" -f $CurrentVersion,$TargetVersion) }
     else { Info ("Current:     {0}" -f $CurrentVersion); Info ("Target:      {0}" -f $TargetVersion) }
@@ -85,13 +89,13 @@ try {
     $staged=Run-Native 'git.exe' @('diff','--cached','--quiet') -AllowFailure
     if ($staged -ne 0) { Fail 'Local staged source changes exist. Commit/revert them before upgrade.' }
 
-    Git @('fetch','origin',$TargetBranch) | Out-Null
+    Invoke-Git @('fetch','origin',$TargetBranch) | Out-Null
     $currentBranch=(& git.exe branch --show-current).Trim()
     if ($currentBranch -ne $TargetBranch) {
         $checkout=Run-Native 'git.exe' @('checkout',$TargetBranch) -AllowFailure
-        if ($checkout -ne 0) { Git @('checkout','-B',$TargetBranch,"origin/$TargetBranch") | Out-Null }
+        if ($checkout -ne 0) { Invoke-Git @('checkout','-B',$TargetBranch,"origin/$TargetBranch") | Out-Null }
     }
-    Git @('reset','--hard',"origin/$TargetBranch") | Out-Null
+    Invoke-Git @('reset','--hard',"origin/$TargetBranch") | Out-Null
     $head=(& git.exe rev-parse HEAD).Trim();$remote=(& git.exe rev-parse "origin/$TargetBranch").Trim()
     if ($head -ne $remote) { Fail "Repository verification failed: HEAD != origin/$TargetBranch" }
     Ok "Repository synchronized: $head"
