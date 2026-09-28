@@ -7,6 +7,7 @@ from tkinter import font as tkfont
 from datetime import datetime
 import resolve_lifecycle as life
 import i18n
+import ui_windows
 from i18n import _
 
 APP=Path(__file__).resolve().parent
@@ -40,20 +41,30 @@ class ConsoleProgress:
  def start(self,message):
   self.cancel_requested=False
   try:
-   self.root=tk.Tk();self.root.title('Progress — DavinciResolveProjectManagement 1.22');self.root.resizable(False,False)
+   self.root=tk.Tk();self.root.title(_('Progress — DavinciResolveProjectManagement 1.23'));self.root.resizable(False,False)
    box=ttk.Frame(self.root,padding=18);box.pack();self.status=tk.StringVar(value=message);self.detail=tk.StringVar(value='')
    ttk.Label(box,textvariable=self.status,font=('Segoe UI',11,'bold')).pack(anchor='w')
    ttk.Label(box,textvariable=self.detail).pack(anchor='w',pady=(5,8))
    self.progress=ttk.Progressbar(box,length=460,maximum=100,mode='determinate');self.progress.pack()
    self.cancel_button=ttk.Button(box,text=_('Cancel'),command=self._cancel,width=14);self.cancel_button.pack(pady=(12,0))
-   self.root.protocol('WM_DELETE_WINDOW',self._cancel);center(self.root);self._pump();life.log('GUI_PROGRESS_OPEN',language=i18n.resolve_language())
+   self.root.protocol('WM_DELETE_WINDOW',self._cancel);center(self.root);self._pump();self.ensure_visible('OPEN');life.log('GUI_PROGRESS_OPEN',language=i18n.resolve_language())
   except Exception as e:life.log('GUI_PROGRESS_OPEN_ERROR',error=repr(e));self.root=None
+ def ensure_visible(self,reason):
+  if self.root is None:return False
+  try:
+   self._pump();hwnd=int(self.root.winfo_id())
+   before=ui_windows.zorder_snapshot(hwnd,12);life.log('PROGRESS_ZORDER_BEFORE',reason=reason,snapshot=before)
+   activated=ui_windows.place_above_resolve(self.root);self._pump()
+   after=ui_windows.zorder_snapshot(hwnd,12);life.log('PROGRESS_ZORDER_AFTER',reason=reason,activated=bool(activated),snapshot=after)
+   return bool(activated)
+  except Exception as e:
+   life.log('PROGRESS_ZORDER_ERROR',reason=reason,error=repr(e));return False
  def stage(self,message,percent=None):
   self.check_cancel()
   if self.root is None:return
   self.status.set(message)
   if percent is not None:self.progress['value']=max(0,min(100,float(percent)))
-  self._pump()
+  self._pump();self.ensure_visible('STAGE')
  def stop(self,done=None,success=True):
   if self.root is None:return
   try:
