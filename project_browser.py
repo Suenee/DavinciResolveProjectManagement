@@ -9,13 +9,14 @@ import ui_windows
 import resolve_lifecycle as life
 import i18n
 from i18n import _
+from project_paths import active_root, configured_roots
 
 APP=Path(__file__).resolve().parent; CONFIG=APP/'config.ini'
 DATE_RE=re.compile(r'^(\d{8})\s+(.+?)(?:\s+(\d+))?$'); MEDIA_EXT={'.mp4','.mov','.mxf','.avi','.mkv','.mts','.m2ts','.wav','.mp3','.aac','.flac','.jpg','.jpeg','.png','.tif','.tiff','.bmp','.webp'}
 INVALID_NAME=re.compile(r'[<>:"/\\|?*]')
 def _config():
  p=configparser.ConfigParser(interpolation=None);p.optionxform=str;p.read(CONFIG,encoding='utf-8');return p
-def project_root():return Path(_config().get('Paths','ProjectRoot'))
+def project_root():return active_root(_config())
 def created(p):
  try:return p.stat().st_ctime
  except OSError:return 0
@@ -138,7 +139,20 @@ def settings(parent,on_saved=None):
    if x:v.set(str(Path(x).parent/'%Y') if year_template and Path(x).name.isdigit() else x)
   ttk.Button(g,text='…',width=3,command=pick).grid(row=row,column=2,padx=(4,0))
  gg=group(left,_('Language'));ttk.Label(gg,text=_('UI Language:')).grid(row=0,column=0,sticky='w',padx=(0,8));ttk.Combobox(gg,textvariable=language_var,values=[lang_labels[x] for x in lang_codes],state='readonly',width=22).grid(row=0,column=1,sticky='ew')
- gp=group(left,_('Project'));folder(gp,0,'Paths','ProjectRoot',_('Project root'));text(gp,1,'DaVinciResolve','ResolveProjectFolder','Resolve Project Library')
+ gp=group(left,_('Project'))
+ path_rows=[]
+ def add_path_row(key='',path=''):
+  row=len(path_rows);kv=tk.StringVar(value=key);pv=tk.StringVar(value=str(path))
+  ttk.Entry(gp,textvariable=kv,width=12).grid(row=row,column=0,sticky='ew',padx=(0,4),pady=2)
+  ttk.Entry(gp,textvariable=pv,width=28).grid(row=row,column=1,sticky='ew',pady=2)
+  def pick():
+   x=filedialog.askdirectory(parent=win,initialdir=pv.get() if Path(pv.get()).is_dir() else None)
+   if x:pv.set(x)
+  ttk.Button(gp,text='…',width=3,command=pick).grid(row=row,column=2,padx=(4,0))
+  path_rows.append((kv,pv))
+ for key,path in configured_roots(p):add_path_row(key,path)
+ if not path_rows:add_path_row('Main','')
+ text(gp,len(path_rows),'DaVinciResolve','ResolveProjectFolder','Resolve Project Library')
  ttk.Label(gp,text='Resolve EXE:').grid(row=2,column=0,sticky='w',padx=(0,8),pady=2);rv=tk.StringVar(value=p.get('DaVinciResolve','ResolveExe',fallback=''));rexe=ttk.Entry(gp,textvariable=rv,width=28);rexe.grid(row=2,column=1,sticky='ew');values[('DaVinciResolve','ResolveExe')]=rv;widgets[('DaVinciResolve','ResolveExe')]=rexe
  def resolve_pick():
   found=filedialog.askopenfilename(parent=win,title=_('Select Resolve.exe'),filetypes=[('DaVinci Resolve','Resolve.exe'),('Executable','*.exe')])
@@ -165,8 +179,14 @@ def settings(parent,on_saved=None):
   chosen_lang=next((code for code,label in lang_labels.items() if label==language_var.get()),'auto')
   if not p.has_section('General'):p.add_section('General')
   p.set('General','Language',chosen_lang)
-  root=Path(values[('Paths','ProjectRoot')].get());intro=Path(values[('IntroDetection','Folder')].get());resolve_exe=rv.get().strip();titles=values[('TimelineAssets','TitlesRoot')].get().strip()
-  if not root.is_dir():messagebox.showerror(_('Settings'),_('Project root must be an existing folder.'),parent=win);return
+  roots=[];keys=set()
+  for kv,pv in path_rows:
+   key=kv.get().strip();raw=pv.get().strip()
+   if not key and not raw:continue
+   if not key or not raw or key.casefold() in keys:messagebox.showerror(_('Settings'),_('Project path names must be unique and both name and path are required.'),parent=win);return
+   keys.add(key.casefold());roots.append((key,raw))
+  if not roots or not any(Path(raw).is_dir() for _,raw in roots):messagebox.showerror(_('Settings'),_('At least one configured project path must exist.'),parent=win);return
+  intro=Path(values[('IntroDetection','Folder')].get());resolve_exe=rv.get().strip();titles=values[('TimelineAssets','TitlesRoot')].get().strip()
   if not intro.is_dir():messagebox.showerror(_('Settings'),_('Intro folder must be an existing folder.'),parent=win);return
   if '%Y' not in titles:messagebox.showerror(_('Settings'),_('Titles must contain the %Y placeholder.'),parent=win);return
   if resolve_exe and (not Path(resolve_exe).is_file() or Path(resolve_exe).name.casefold()!='resolve.exe'):messagebox.showerror(_('Settings'),_('Resolve EXE must point to Resolve.exe.'),parent=win);return
@@ -175,6 +195,9 @@ def settings(parent,on_saved=None):
    if not (5<=sr<=120 and -60<=st<=-20 and .05<=ms<=2 and 0<=kb<=5 and 0<=ka<=5):raise ValueError
   except ValueError:messagebox.showerror(_('Settings'),_('Silence Trim values are outside the allowed range.'),parent=win);return
   if not _safe_relative_name(values[('DaVinciResolve','ResolveProjectFolder')].get()) or not _safe_relative_name(values[('Deliver','Folder')].get()):messagebox.showerror(_('Settings'),_('Project Library and DELIVERY must be valid relative names.'),parent=win);return
+  if p.has_section('Paths'):p.remove_section('Paths')
+  p.add_section('Paths')
+  for key,raw in roots:p.set('Paths',key,raw)
   for (sec,key),v in values.items():
    if not p.has_section(sec):p.add_section(sec)
    val=v.get()
