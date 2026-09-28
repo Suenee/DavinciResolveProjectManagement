@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.14 - 28.09.2026
+
+- Added precise diagnostics around DaVinci Resolve project creation, including entry/return from `CreateProject()`, project-object validation, Media Pool access, and root-folder access.
+- Added a recovery path for Resolve builds that create a project but do not return a usable project object: the application re-queries the active Project Library folder and reloads the newly created project before continuing.
+- Added explicit hard failures when the created/reloaded project has no accessible Media Pool or Media Pool root, preventing silent partial initialization.
+- Media import, verification, timeline creation, Voice Isolation, DELIVERY setup, and save continue only after the project object and Media Pool root have been verified.
+
 ## 1.13 - 28.09.2026
 
 - Added single-instance protection for the project-management launcher on Windows.
