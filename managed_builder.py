@@ -101,8 +101,8 @@ PROGRESS=ConsoleProgress()
 
 def cfg():
  if not CONFIG.exists():shutil.copy2(EXAMPLE,CONFIG)
- p=configparser.ConfigParser();p.read(CONFIG,encoding='utf-8')
- return (Path(p.get('Paths','ProjectRoot')),p.get('DaVinciResolve','ResolveProjectFolder',fallback='').strip(),p.getint('DaVinciResolve','StartupTimeout',fallback=180),p.getint('DaVinciResolve','AliveTimeout',fallback=900),p.get('Deliver','Preset',fallback='').strip(),p.get('Deliver','Folder',fallback='DELIVERY').strip() or 'DELIVERY')
+ p=configparser.ConfigParser(interpolation=None);p.optionxform=str;p.read(CONFIG,encoding='utf-8')
+ return (active_root(p),p.get('DaVinciResolve','ResolveProjectFolder',fallback='').strip(),p.getint('DaVinciResolve','StartupTimeout',fallback=180),p.getint('DaVinciResolve','AliveTimeout',fallback=900),p.get('Deliver','Preset',fallback='').strip(),p.get('Deliver','Folder',fallback='DELIVERY').strip() or 'DELIVERY')
 def nodate(name):return DATE.sub('',name,count=1).strip()
 def created(p):
  try:return p.stat().st_ctime
