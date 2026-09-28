@@ -6,13 +6,16 @@ from tkinter import ttk
 from tkinter import font as tkfont
 from datetime import datetime
 import resolve_lifecycle as life
+import i18n
+from i18n import _
 
 APP=Path(__file__).resolve().parent
 CONFIG=APP/'config.ini'; EXAMPLE=APP/'config.example.ini'; HISTORY=APP/'runtime'/'startup_history.ini'
 DATE=re.compile(r'^\d{8}\s+'); OPTIONAL=('IMAGES','PHOTOS','AUDIO')
 
+class WorkflowCancelled(RuntimeError):pass
 class ConsoleProgress:
- def __init__(self):self.root=None;self.status=None;self.detail=None;self.progress=None;self.console_ok=True
+ def __init__(self):self.root=None;self.status=None;self.detail=None;self.progress=None;self.cancel_button=None;self.cancel_requested=False;self.console_ok=True
  def _pump(self):
   if self.root is not None:
    try:self.root.update_idletasks();self.root.update()
@@ -25,34 +28,47 @@ class ConsoleProgress:
    try:life.log('CONSOLE_PROGRESS_DISABLED',reason='stdout unavailable')
    except Exception:pass
    return False
+ def _cancel(self):
+  if self.cancel_requested:return
+  self.cancel_requested=True;life.log('WORKFLOW_CANCEL_REQUESTED')
+  if self.status is not None:self.status.set(_('Cancelling…'))
+  if self.cancel_button is not None:self.cancel_button.configure(state='disabled',text=_('Cancelling…'))
+  self._pump()
+ def check_cancel(self):
+  self._pump()
+  if self.cancel_requested:raise WorkflowCancelled(_('Cancelling…'))
  def start(self,message):
+  self.cancel_requested=False
   try:
-   self.root=tk.Tk();self.root.title('Průběh — DavinciResolveProjectManagement 1.21');self.root.resizable(False,False)
+   self.root=tk.Tk();self.root.title('Progress — DavinciResolveProjectManagement 1.22');self.root.resizable(False,False)
    box=ttk.Frame(self.root,padding=18);box.pack();self.status=tk.StringVar(value=message);self.detail=tk.StringVar(value='')
    ttk.Label(box,textvariable=self.status,font=('Segoe UI',11,'bold')).pack(anchor='w')
    ttk.Label(box,textvariable=self.detail).pack(anchor='w',pady=(5,8))
    self.progress=ttk.Progressbar(box,length=460,maximum=100,mode='determinate');self.progress.pack()
-   center(self.root);self._pump();life.log('GUI_PROGRESS_OPEN')
+   self.cancel_button=ttk.Button(box,text=_('Cancel'),command=self._cancel,width=14);self.cancel_button.pack(pady=(12,0))
+   self.root.protocol('WM_DELETE_WINDOW',self._cancel);center(self.root);self._pump();life.log('GUI_PROGRESS_OPEN',language=i18n.resolve_language())
   except Exception as e:life.log('GUI_PROGRESS_OPEN_ERROR',error=repr(e));self.root=None
  def stage(self,message,percent=None):
+  self.check_cancel()
   if self.root is None:return
   self.status.set(message)
   if percent is not None:self.progress['value']=max(0,min(100,float(percent)))
   self._pump()
- def stop(self,done='Hotovo'):
+ def stop(self,done=None,success=True):
   if self.root is None:return
-  try:self.status.set(done or 'Hotovo');self.progress['value']=100;self._pump();self.root.destroy()
+  try:
+   if success:self.status.set(done or _('Done'));self.progress['value']=100
+   self._pump();self.root.destroy()
   except tk.TclError:pass
   self.root=None
  def bar(self,message,current,total):
-  ratio=current/total if total else 1
+  self.check_cancel();ratio=current/total if total else 1
   if self.root is not None:
    self.status.set(message);self.detail.set(f'{current} / {total}');self.progress['value']=max(0,min(100,30+ratio*40));self._pump()
   else:self._write(f'\r{ratio*100:3.0f}% {message} {current}/{total}   ')
  def bar_done(self):
   if self.root is None:self._write('\n')
- def set_percent(self,message,percent):
-  self.stage(message,percent)
+ def set_percent(self,message,percent):self.stage(message,percent)
 PROGRESS=ConsoleProgress()
 
 def cfg():
@@ -109,9 +125,9 @@ def ensure(name,timeout):
  for attempt in (1,2):
   est=estimate(timeout);start=time.time();pid=life.start_headless(name)
   while time.time()-start<timeout:
-   elapsed=time.time()-start;pct=min(95,int(elapsed/max(est,1)*100));PROGRESS.set_percent('Spouštím DaVinci Resolve…',pct)
+   elapsed=time.time()-start;pct=min(95,int(elapsed/max(est,1)*100));PROGRESS.set_percent(_('Connecting to DaVinci Resolve…'),pct)
    r=connect()
-   if r:save_sample(time.time()-start);PROGRESS.set_percent('DaVinci Resolve připojen',100);return r
+   if r:save_sample(time.time()-start);PROGRESS.set_percent(_('Connecting to DaVinci Resolve…'),100);return r
    if not life.pid_running(pid) and elapsed>5:break
    time.sleep(.5)
   life.force_stop_owned();time.sleep(5)
@@ -151,7 +167,7 @@ def sync(mp,parent,d,missing,counter,total):
   life.log('MEDIA_IMPORT_CALL',bin=d.name,requested=len(sel),files=[str(p) for p in sel])
   x=mp.ImportMedia([str(p) for p in sel]);accepted=len(x) if x else 0;n+=accepted;counter[0]+=len(sel)
   life.log('MEDIA_IMPORT_RETURN',bin=d.name,requested=len(sel),accepted=accepted)
-  PROGRESS.bar(f'Import médií: {d.name}',counter[0],total);PROGRESS.bar_done()
+  PROGRESS.bar(_('Import media: {bin}').format(bin=d.name),counter[0],total);PROGRESS.bar_done()
  for c in sorted([x for x in d.iterdir() if x.is_dir()],key=lambda p:p.name.casefold()):
   if any(norm(p) in missing for p in allfiles(c)):n+=sync(mp,b,c,missing,counter,total)
  life.log('MEDIA_DIR_END',source=str(d),bin=d.name,accepted=n);return n
@@ -202,10 +218,18 @@ def create_initial_timeline(mp,master,shoot,timeline_name,intro_path=None,title_
  if intro_clip:
   life.log('TIMELINE_INTRO_APPEND_CALL',file=str(intro_path));r=mp.AppendToTimeline([intro_clip]);life.log('TIMELINE_INTRO_APPEND_RETURN',success=bool(r))
  shooting=[clip_map[norm(p)] for p in ordered_files if norm(p) in clip_map]
- if shooting:life.log('TIMELINE_SHOOTING_APPEND_CALL',clips=len(shooting));r=mp.AppendToTimeline(shooting);life.log('TIMELINE_SHOOTING_APPEND_RETURN',success=bool(r))
+ first_shooting_frame=None
+ if shooting:
+  life.log('TIMELINE_SHOOTING_APPEND_CALL',clips=len(shooting));r=mp.AppendToTimeline(shooting);life.log('TIMELINE_SHOOTING_APPEND_RETURN',success=bool(r))
+  if isinstance(r,(list,tuple)) and r:
+   try:first_shooting_frame=int(r[0].GetStart())
+   except Exception:first_shooting_frame=None
+  life.log('TIMELINE_SHOOTING_START',frame=first_shooting_frame)
  if credits_path:
   item=image_map.get(norm(credits_path))
   if item and not _append_still(mp,timeline,item,credits_seconds,fps,'credits'):life.log('TIMELINE_CREDITS_SKIPPED',reason='append_failed',file=str(credits_path))
+ try:setattr(timeline,'_drpm_first_shooting_frame',first_shooting_frame)
+ except Exception:pass
  return timeline
 def apply_deliver(project,src,preset,folder):
  if not preset:return None
