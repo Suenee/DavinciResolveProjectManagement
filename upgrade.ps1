@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $Repo = $env:DRPM_REPO
 $TargetBranch = if ($env:DRPM_BRANCH) { $env:DRPM_BRANCH } else { 'main' }
-$RunnerRevision = '1.18-fresh-bootstrap'
+$RunnerRevision = '1.19-fresh-bootstrap-dirty-guard'
 $TargetVersion = 'unknown'
 $CurrentVersion = 'unknown'
 if (-not $Repo) { $Repo = Split-Path -Parent $MyInvocation.MyCommand.Path }
@@ -79,15 +79,19 @@ try {
 
 
     Set-Phase 'SELF-UPDATE'
-    $unstaged=Run-Native 'git.exe' @('diff','--quiet') -AllowFailure
-    if ($unstaged -ne 0) {
-        $names=@(& git.exe diff --name-only)
-        $nonBootstrap=@($names | Where-Object { $_ -and $_ -notin @('upgrade.cmd','upgrade.ps1','.gitattributes') })
-        if ($nonBootstrap.Count -gt 0) { Fail "Local tracked source files contain changes: $($nonBootstrap -join ', ')" }
-        Warn 'Only bootstrap files differ locally; remote tracked state will be authoritative.'
+    if ($env:DRPM_FRESH_BOOTSTRAP -eq '1') {
+        Info 'Fresh bootstrap confirmed by launcher; local-change guard is not applicable before the first authoritative reset.'
+    } else {
+        $unstaged=Run-Native 'git.exe' @('diff','--quiet') -AllowFailure
+        if ($unstaged -ne 0) {
+            $names=@(& git.exe diff --name-only)
+            $nonBootstrap=@($names | Where-Object { $_ -and $_ -notin @('upgrade.cmd','upgrade.ps1','.gitattributes') })
+            if ($nonBootstrap.Count -gt 0) { Fail "Local tracked source files contain changes: $($nonBootstrap -join ', ')" }
+            Warn 'Only bootstrap files differ locally; remote tracked state will be authoritative.'
+        }
+        $staged=Run-Native 'git.exe' @('diff','--cached','--quiet') -AllowFailure
+        if ($staged -ne 0) { Fail 'Local staged source changes exist. Commit/revert them before upgrade.' }
     }
-    $staged=Run-Native 'git.exe' @('diff','--cached','--quiet') -AllowFailure
-    if ($staged -ne 0) { Fail 'Local staged source changes exist. Commit/revert them before upgrade.' }
 
     Invoke-Git @('fetch','origin',$TargetBranch) | Out-Null
     $currentBranch=(& git.exe branch --show-current).Trim()
