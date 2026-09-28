@@ -9,6 +9,7 @@ import resolve_lifecycle as life
 import i18n
 import ui_windows
 from i18n import _
+from project_paths import active_root
 
 APP=Path(__file__).resolve().parent
 CONFIG=APP/'config.ini'; EXAMPLE=APP/'config.example.ini'; HISTORY=APP/'runtime'/'startup_history.ini'
