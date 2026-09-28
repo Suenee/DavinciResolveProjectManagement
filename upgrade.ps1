@@ -1,12 +1,14 @@
 $ErrorActionPreference = 'Stop'
 $Repo = $env:DRPM_REPO
 $TargetBranch = if ($env:DRPM_BRANCH) { $env:DRPM_BRANCH } else { 'main' }
-$RunnerRevision = '1.08-regex-intro-mapping'
-$TargetVersion = '1.16'
+$RunnerRevision = '1.09-centralized-logs'
+$TargetVersion = '1.17'
 $CurrentVersion = 'unknown'
 if (-not $Repo) { $Repo = Split-Path -Parent $MyInvocation.MyCommand.Path }
 $Repo = [System.IO.Path]::GetFullPath($Repo).TrimEnd('\')
-$Log = Join-Path $Repo 'upgrade.log'
+$LogDir = Join-Path $Repo 'logs'
+New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+$Log = Join-Path $LogDir 'upgrade.log'
 $Phase = 'SELF-UPDATE'
 $Warnings = 0
 $FinalStatus = $null
