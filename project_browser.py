@@ -48,7 +48,7 @@ def propose_name(raw,root):
  return f'{date} {base} {num}'
 def unique_name(name,root):return not any(p.name.casefold()==name.casefold() for p in projects(root))
 def ask_new_project(parent,root):
- win=tk.Toplevel(parent);win.title(_('New project — DavinciResolveProjectManagement 1.23'));win.resizable(False,False);result=[None];confirmed=[False];popup=[None];box=ttk.Frame(win,padding=18);box.grid();ttk.Label(box,text=_('Project name:')).grid(row=0,column=0,sticky='w');var=tk.StringVar();entry=ttk.Entry(box,textvariable=var,width=54);entry.grid(row=1,column=0,columnspan=2,sticky='ew',pady=(4,2));msg=tk.Label(box,text='',fg='#c00000',anchor='w',height=1);msg.grid(row=2,column=0,columnspan=2,sticky='w',pady=(3,0));buttons=ttk.Frame(box);buttons.grid(row=3,column=0,columnspan=2,pady=(12,0));okb=ttk.Button(buttons,text='OK',width=14);okb.pack(side='left',padx=6);ttk.Button(buttons,text=_('Cancel'),width=14,command=win.destroy).pack(side='left',padx=6)
+ win=tk.Toplevel(parent);win.title(_('New project — DavinciResolveProjectManagement 1.26'));win.resizable(False,False);result=[None];confirmed=[False];popup=[None];box=ttk.Frame(win,padding=18);box.grid();ttk.Label(box,text=_('Project name:')).grid(row=0,column=0,sticky='w');var=tk.StringVar();entry=ttk.Entry(box,textvariable=var,width=54);entry.grid(row=1,column=0,columnspan=2,sticky='ew',pady=(4,2));msg=tk.Label(box,text='',fg='#c00000',anchor='w',height=1);msg.grid(row=2,column=0,columnspan=2,sticky='w',pady=(3,0));buttons=ttk.Frame(box);buttons.grid(row=3,column=0,columnspan=2,pady=(12,0));okb=ttk.Button(buttons,text='OK',width=14);okb.pack(side='left',padx=6);ttk.Button(buttons,text=_('Cancel'),width=14,command=win.destroy).pack(side='left',padx=6)
  def hide_popup():
   if popup[0] is not None:
    try:popup[0].destroy()
@@ -122,15 +122,15 @@ def _safe_relative_name(value):
  value=value.strip()
  return bool(value) and not Path(value).is_absolute() and '..' not in Path(value).parts and INVALID_NAME.search(value) is None
 def settings(parent,on_saved=None):
- p=_config();win=tk.Toplevel(parent);win.title(_('Settings — DavinciResolveProjectManagement 1.23'));win.resizable(False,False)
+ p=_config();win=tk.Toplevel(parent);win.title(_('Settings — DavinciResolveProjectManagement 1.26'));win.resizable(False,False)
  outer=ttk.Frame(win,padding=12);outer.grid();values={};widgets={}
  left=ttk.Frame(outer);right=ttk.Frame(outer);left.grid(row=0,column=0,sticky='n',padx=(0,6));right.grid(row=0,column=1,sticky='n',padx=(6,0))
  lang_codes=i18n.available_languages();lang_labels={'auto':_('Automatic (Windows)'),'cs':_('Czech'),'en':_('English')};current_lang=p.get('General','Language',fallback='auto').casefold();language_var=tk.StringVar(value=lang_labels.get(current_lang,_('Automatic (Windows)')))
  def group(parent,title):g=ttk.LabelFrame(parent,text=title,padding=9);g.pack(fill='x',pady=(0,8));g.columnconfigure(1,weight=1);return g
  def text(g,row,sec,key,title,width=31):
   ttk.Label(g,text=title+':').grid(row=row,column=0,sticky='w',padx=(0,8),pady=2);v=tk.StringVar(value=p.get(sec,key,fallback=''));e=ttk.Entry(g,textvariable=v,width=width);e.grid(row=row,column=1,columnspan=2,sticky='ew',pady=2);values[(sec,key)]=v;widgets[(sec,key)]=e
- def number(g,row,sec,key,title,lo,hi,display=None):
-  ttk.Label(g,text=title+':').grid(row=row,column=0,sticky='w',padx=(0,8),pady=2);raw=p.get(sec,key,fallback=str(lo));v=tk.StringVar(value=str(display(raw) if display else raw));e=ttk.Spinbox(g,from_=lo,to=hi,textvariable=v,width=12);e.grid(row=row,column=1,columnspan=2,sticky='ew',pady=2);values[(sec,key)]=v;widgets[(sec,key)]=e
+ def number(g,row,sec,key,title,lo,hi,display=None,increment=1):
+  ttk.Label(g,text=title+':').grid(row=row,column=0,sticky='w',padx=(0,8),pady=2);raw=p.get(sec,key,fallback=str(lo));v=tk.StringVar(value=str(display(raw) if display else raw));e=ttk.Spinbox(g,from_=lo,to=hi,increment=increment,textvariable=v,width=12);e.grid(row=row,column=1,columnspan=2,sticky='ew',pady=2);values[(sec,key)]=v;widgets[(sec,key)]=e
  def folder(g,row,sec,key,title,year_template=False):
   ttk.Label(g,text=title+':').grid(row=row,column=0,sticky='w',padx=(0,8),pady=2);v=tk.StringVar(value=p.get(sec,key,fallback=''));e=ttk.Entry(g,textvariable=v,width=28);e.grid(row=row,column=1,sticky='ew',pady=2);values[(sec,key)]=v;widgets[(sec,key)]=e
   def pick():
@@ -150,8 +150,17 @@ def settings(parent,on_saved=None):
  gt=group(right,'Timeline');number(gt,0,'Timeline','VoiceIsolationAmount','Voice Isolation (%)',0,100);bv=tk.BooleanVar(value=p.getboolean('Timeline','CreateCleanAudioTrack',fallback=True));ttk.Label(gt,text=_('Clean audio track:')).grid(row=1,column=0,sticky='w');ttk.Checkbutton(gt,variable=bv).grid(row=1,column=1,sticky='w');values[('Timeline','CreateCleanAudioTrack')]=bv;text(gt,2,'Timeline','CleanAudioTrackName',_('Audio track name'))
  ga=group(right,_('Title image / End credits'));folder(ga,0,'TimelineAssets','TitlesRoot','Titles',True);number(ga,1,'TimelineAssets','TitleDurationSeconds',_('Title duration (s)'),1,600);number(ga,2,'TimelineAssets','TitleCandidateCount',_('TOP candidates'),1,20);number(ga,3,'TimelineAssets','TitleAutoMatchScore','Auto match (%)',0,100,lambda x:round(float(x)*100) if float(x)<=1 else round(float(x)));number(ga,4,'TimelineAssets','YearBoundaryToleranceDays',_('Year boundary (days)'),0,60);text(ga,5,'TimelineAssets','EndCreditsFile',_('End credits file'));number(ga,6,'TimelineAssets','EndCreditsDurationSeconds',_('End credits duration (s)'),1,600)
  gi=group(right,_('Intro'));folder(gi,0,'IntroDetection','Folder',_('Intro folder'));number(gi,1,'IntroDetection','SearchWindowSeconds',_('Search window (min)'),1,5,lambda x:max(1,min(5,round(float(x)/60))));number(gi,2,'IntroDetection','MinConfidence',_('Min. confidence (%)'),0,100,lambda x:round(float(x)*100) if float(x)<=1 else round(float(x)))
- def dependencies(*_):widgets[('Timeline','CleanAudioTrackName')].configure(state='normal' if bv.get() else 'disabled')
- bv.trace_add('write',dependencies);dependencies()
+ gs=group(right,_('Silence Trim'));sv=tk.BooleanVar(value=p.getboolean('SilenceTrim','Enabled',fallback=True));ttk.Label(gs,text=_('Enabled:')).grid(row=0,column=0,sticky='w');ttk.Checkbutton(gs,variable=sv).grid(row=0,column=1,sticky='w');values[('SilenceTrim','Enabled')]=sv
+ number(gs,1,'SilenceTrim','SearchSeconds',_('Detection range (s)'),5,120)
+ number(gs,2,'SilenceTrim','ThresholdDb',_('Silence level (dBFS)'),-60,-20)
+ number(gs,3,'SilenceTrim','MinimumSoundSeconds',_('Minimum sound (s)'),0.05,2.0,increment=0.05)
+ number(gs,4,'SilenceTrim','KeepBeforeSeconds',_('Space before speech (s)'),0.0,5.0,increment=0.05)
+ number(gs,5,'SilenceTrim','KeepAfterSeconds',_('Space after speech (s)'),0.0,5.0,increment=0.05)
+ def dependencies(*_):
+  widgets[('Timeline','CleanAudioTrackName')].configure(state='normal' if bv.get() else 'disabled')
+  for key in ('SearchSeconds','ThresholdDb','MinimumSoundSeconds','KeepBeforeSeconds','KeepAfterSeconds'):
+   widgets[('SilenceTrim',key)].configure(state='normal' if sv.get() else 'disabled')
+ bv.trace_add('write',dependencies);sv.trace_add('write',dependencies);dependencies()
  def save():
   chosen_lang=next((code for code,label in lang_labels.items() if label==language_var.get()),'auto')
   if not p.has_section('General'):p.add_section('General')
@@ -161,6 +170,10 @@ def settings(parent,on_saved=None):
   if not intro.is_dir():messagebox.showerror(_('Settings'),_('Intro folder must be an existing folder.'),parent=win);return
   if '%Y' not in titles:messagebox.showerror(_('Settings'),_('Titles must contain the %Y placeholder.'),parent=win);return
   if resolve_exe and (not Path(resolve_exe).is_file() or Path(resolve_exe).name.casefold()!='resolve.exe'):messagebox.showerror(_('Settings'),_('Resolve EXE must point to Resolve.exe.'),parent=win);return
+  try:
+   sr=float(values[('SilenceTrim','SearchSeconds')].get());st=float(values[('SilenceTrim','ThresholdDb')].get());ms=float(values[('SilenceTrim','MinimumSoundSeconds')].get());kb=float(values[('SilenceTrim','KeepBeforeSeconds')].get());ka=float(values[('SilenceTrim','KeepAfterSeconds')].get())
+   if not (5<=sr<=120 and -60<=st<=-20 and .05<=ms<=2 and 0<=kb<=5 and 0<=ka<=5):raise ValueError
+  except ValueError:messagebox.showerror(_('Settings'),_('Silence Trim values are outside the allowed range.'),parent=win);return
   if not _safe_relative_name(values[('DaVinciResolve','ResolveProjectFolder')].get()) or not _safe_relative_name(values[('Deliver','Folder')].get()):messagebox.showerror(_('Settings'),_('Project Library and DELIVERY must be valid relative names.'),parent=win);return
   for (sec,key),v in values.items():
    if not p.has_section(sec):p.add_section(sec)
@@ -176,7 +189,7 @@ def settings(parent,on_saved=None):
  buttons=ttk.Frame(outer);buttons.grid(row=1,column=0,columnspan=2,pady=(4,0));ttk.Button(buttons,text='OK',width=14,command=save).pack(side='left',padx=6);ttk.Button(buttons,text=_('Cancel'),width=14,command=win.destroy).pack(side='left',padx=6)
  ui_windows.prepare_dialog(win,parent);ui_windows.center_and_place_above_resolve(win);win.grab_set()
 def choose_project(candidates,query='',root_path=None):
- current_root=[root_path or project_root()];all_projects=[list(candidates) if candidates is not None else projects(current_root[0])];result=[None];root=tk.Tk();root.title(_('Projects — DavinciResolveProjectManagement 1.23'));root.resizable(False,False);menu=tk.Menu(root);pm=tk.Menu(menu,tearoff=False);menu.add_cascade(label=_('Project'),menu=pm);root.config(menu=menu);outer=ttk.Frame(root,padding=(18,12,18,14));outer.pack();search_var=tk.StringVar(value=query or '');search=ttk.Entry(outer,textvariable=search_var,width=64);search.pack(fill='x',pady=(0,8));frame=ttk.Frame(outer);frame.pack();tree=ttk.Treeview(frame,columns=('name','created'),show='headings',height=12,selectmode='browse');dw=tkfont.nametofont('TkDefaultFont').measure('18.08.2026 23:59:59')+24;tree.column('name',width=410,anchor='w');tree.column('created',width=dw,anchor='e',stretch=False);tree.heading('name',text=_('Project'));tree.heading('created',text=_('Created'));scroll=ttk.Scrollbar(frame,orient='vertical',command=tree.yview);tree.configure(yscrollcommand=scroll.set);tree.pack(side='left');scroll.pack(side='right',fill='y');displayed=[];info=tk.StringVar();ttk.Label(outer,textvariable=info).pack(anchor='w',pady=(5,0))
+ current_root=[root_path or project_root()];all_projects=[list(candidates) if candidates is not None else projects(current_root[0])];result=[None];root=tk.Tk();root.title(_('Projects — DavinciResolveProjectManagement 1.26'));root.resizable(False,False);menu=tk.Menu(root);pm=tk.Menu(menu,tearoff=False);menu.add_cascade(label=_('Project'),menu=pm);root.config(menu=menu);outer=ttk.Frame(root,padding=(18,12,18,14));outer.pack();search_var=tk.StringVar(value=query or '');search=ttk.Entry(outer,textvariable=search_var,width=64);search.pack(fill='x',pady=(0,8));frame=ttk.Frame(outer);frame.pack();tree=ttk.Treeview(frame,columns=('name','created'),show='headings',height=12,selectmode='browse');dw=tkfont.nametofont('TkDefaultFont').measure('18.08.2026 23:59:59')+24;tree.column('name',width=410,anchor='w');tree.column('created',width=dw,anchor='e',stretch=False);tree.heading('name',text=_('Project'));tree.heading('created',text=_('Created'));scroll=ttk.Scrollbar(frame,orient='vertical',command=tree.yview);tree.configure(yscrollcommand=scroll.set);tree.pack(side='left');scroll.pack(side='right',fill='y');displayed=[];info=tk.StringVar();ttk.Label(outer,textvariable=info).pack(anchor='w',pady=(5,0))
  def rebuild(*_):
   q=search_var.get().strip().casefold();ordered=[p for p in all_projects[0] if not q or q in p.name.casefold()];ordered.sort(key=created,reverse=True);displayed[:]=ordered;tree.delete(*tree.get_children())
   for i,pth in enumerate(ordered):tree.insert('','end',iid=str(i),values=(pth.name,datetime.fromtimestamp(created(pth)).strftime('%d.%m.%Y %H:%M:%S')))
@@ -185,7 +198,7 @@ def choose_project(candidates,query='',root_path=None):
  def reload_config(language_changed=False):
   current_root[0]=project_root();all_projects[0]=projects(current_root[0])
   if language_changed:
-   root.title(_('Projects — DavinciResolveProjectManagement 1.23'));menu.entryconfigure(0,label=_('Project'))
+   root.title(_('Projects — DavinciResolveProjectManagement 1.26'));menu.entryconfigure(0,label=_('Project'))
    pm.entryconfigure(0,label=_('New...'));pm.entryconfigure(1,label=_('Open...'));pm.entryconfigure(2,label=_('Settings...'));pm.entryconfigure(4,label=_('Exit'))
    tree.heading('name',text=_('Project'));tree.heading('created',text=_('Created'))
    life.log('UI_LANGUAGE_APPLIED',language=i18n.resolve_language())
