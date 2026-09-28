@@ -93,6 +93,16 @@ def center_over_resolve(root):
     return None
 
 
+def prepare_dialog(root,parent=None):
+    try:
+        if parent is not None:
+            root.transient(parent)
+        root.attributes('-topmost', True)
+        root.after(350, lambda: root.attributes('-topmost', False) if root.winfo_exists() else None)
+    except Exception:
+        pass
+
+
 def activate_window(root):
     """Restore and foreground a Tk window without leaving it globally always-on-top."""
     try:
@@ -111,6 +121,7 @@ def activate_window(root):
         # returns it to the normal Z-order so it does not stay above unrelated applications.
         user32.SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE)
         user32.SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE)
+        user32.BringWindowToTop(hwnd)
         user32.SetForegroundWindow(hwnd)
         root.lift()
         root.focus_force()
@@ -133,4 +144,9 @@ def center_and_place_above_resolve(root):
     root.update_idletasks()
     resolve_hwnd = center_over_resolve(root)
     root.deiconify()
+    prepare_dialog(root)
     place_above_resolve(root, resolve_hwnd)
+    try:
+        root.after(120, lambda: activate_window(root) if root.winfo_exists() else None)
+    except Exception:
+        pass
