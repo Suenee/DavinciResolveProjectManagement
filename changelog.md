@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.22 - 28.09.2026
+
+- Added an extensible GNU gettext localization layer with standard per-locale catalogs under `locale/<language>/LC_MESSAGES/`.
+- Added `[General] Language = auto`; automatic mode follows the Windows UI language, uses Czech for Czech Windows, and falls back to English for unsupported or undetectable languages.
+- Added a UI language selector to Settings. Additional gettext catalogs can be added without changing application workflow logic.
+- Added a Cancel button to the workflow progress window. Cancellation is cooperative and is honored at safe workflow/progress checkpoints instead of forcibly terminating Resolve during an API call.
+- The Cancel button changes to a disabled cancelling state after the first request, and cancellation is recorded in the application log.
+- Progress remains active through the final Resolve UI preparation and reaches completion only after the Edit page, current timeline, and final playhead positioning have been processed.
+- Captures the exact timeline start frame of the first SHOOTING item returned by Resolve and uses it as the preferred final playhead target instead of estimating title and intro durations.
+- Falls back to the timeline start when a first SHOOTING item position is unavailable.
+- Updated application window titles to version 1.22.
+
 ## 1.21 - 28.09.2026
 
 - Replaced the console-only workflow progress with a visible Tk progress window that reports Resolve startup, media import progress, timeline/audio/delivery/save stages, and completion.
