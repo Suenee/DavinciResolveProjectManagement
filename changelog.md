@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.20 - 28.09.2026
+
+- Added detailed single-instance activation diagnostics when `run.cmd` is started while the application is already running.
+- Logs the secondary-instance detection, activation signal delivery/receipt, activation API result, and failures.
+- Added native Windows Z-order snapshots immediately before activation and shortly afterwards.
+- Z-order diagnostics record visible top-level windows in native top-to-bottom order, including HWND, PID, process, title, TOPMOST state, foreground state, and explicit application/Resolve markers.
+- Logs the measured application and DaVinci Resolve Z-order indexes so Resolve-specific foreground behavior can be diagnosed from real runtime evidence.
+- Fixed the centralized `DavinciResolveProjectManagement.log` path constant used by runtime logging.
+
+# Changelog
+
 ## 1.19 - 28.09.2026
 
 - Added application version 1.19 to the project browser, settings, new-project, project-update, intro-selection, and title-image-selection window titles for immediate runtime verification.
