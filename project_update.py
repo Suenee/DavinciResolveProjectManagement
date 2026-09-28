@@ -6,15 +6,20 @@ import resolve_lifecycle as life
 import timeline_audio
 import intro_match_routing
 import verified_import
+import timeline_assets
 
 _CREATOR=None
 _INTRO_SELECTOR=None
+_TITLE_SELECTOR=None
 
 def set_timeline_creator(func):
  global _CREATOR;_CREATOR=func
 
 def set_intro_selector(func):
  global _INTRO_SELECTOR;_INTRO_SELECTOR=func
+
+def set_title_selector(func):
+ global _TITLE_SELECTOR;_TITLE_SELECTOR=func
 
 def _select_intro(project_name):
  p=m.configparser.ConfigParser(interpolation=None);p.optionxform=str;p.read(m.CONFIG,encoding='utf-8')
@@ -66,9 +71,9 @@ def _status(project,base,missing,src,deliver_folder,shoot):
  timelines=_matching_timelines(project,base);return {'missing':len(missing),'timeline':bool(timelines),'voice':any(timeline_audio.is_prepared(t) for t in timelines),'deliver':_deliver_ready(project,src,deliver_folder)}
 def ask(project_name,status):raise RuntimeError('Update dialog was not initialized.')
 def _stage(name):life.put(stage=name);life.log('WORKFLOW_STAGE',stage=name)
-def _create_timeline(mp,master,shoot,name,voice,intro_reference=None,intro_first=None):
+def _create_timeline(mp,master,shoot,name,voice,intro_reference=None,intro_first=None,title_path=None,credits_path=None,title_seconds=20,credits_seconds=25,fps=25):
  if _CREATOR is None:raise RuntimeError('Timeline creator není inicializován.')
- _stage('TIMELINE');timeline=_CREATOR(mp,master,shoot,name,intro_first)
+ _stage('TIMELINE');timeline=_CREATOR(mp,master,shoot,name,intro_first,title_path,credits_path,title_seconds,credits_seconds,fps)
  if voice:_stage('VOICE_ISOLATION');timeline=timeline_audio.configure(timeline)
  if voice and intro_reference:_stage('INTRO_MATCH');timeline=intro_match_routing.apply(mp,timeline,intro_reference)
  return timeline
@@ -83,7 +88,9 @@ def _verify_media(mp,master,dirs,fs):
 def build(query,keep):
  phase='INIT'
  root,folder,timeout,alive,deliver_preset,deliver_folder=m.cfg();src=m.resolve_project(root,query);name=src.name;life.begin_log_session('run',name);life.log('PROJECT_RESOLVED',query=query,name=name)
+ selected_title=timeline_assets.choose_title(name,_TITLE_SELECTOR)
  selected_intro=_select_intro(name)
+ selected_credits=timeline_assets.find_credits();asset_cfg=timeline_assets.config()
  shoot=next((x for x in src.iterdir() if x.is_dir() and x.name.casefold()=='shooting'),src/'SHOOTING')
  if not shoot.is_dir():raise RuntimeError(f'Chybí SHOOTING: {shoot}')
  dirs=[shoot]+[d for dn in m.OPTIONAL for d in src.iterdir() if d.is_dir() and d.name.casefold()==dn.casefold()];fs={m.norm(p):p for d in dirs for p in m.allfiles(d)}
@@ -113,7 +120,16 @@ def build(query,keep):
    if master is None:raise RuntimeError(f'Projekt nemá dostupný kořen Media Poolu: {name}')
    life.log('ROOT_FOLDER_OK',name=name)
    # These standard bins are part of every newly initialized project even when empty.
-   m.getbin(mp,master,'IMAGES');intro_bin=m.getbin(mp,master,'INTRO')
+   images_bin=m.getbin(mp,master,'IMAGES');intro_bin=m.getbin(mp,master,'INTRO')
+   timeline_title=None;timeline_credits=None
+   for kind,path in (('title',selected_title),('credits',selected_credits)):
+    if not path:continue
+    if not path.is_file():life.log('IMAGE_ASSET_SKIPPED',kind=kind,reason='file_missing',file=str(path));continue
+    life.log('IMAGE_IMPORT_CALL',kind=kind,bin='IMAGES',file=str(path));mp.SetCurrentFolder(images_bin);image_result=mp.ImportMedia([str(path)]);life.log('IMAGE_IMPORT_RETURN',kind=kind,file=str(path),accepted=len(image_result) if image_result else 0)
+    if image_result:
+     if kind=='title':timeline_title=path
+     else:timeline_credits=path
+    else:life.log('IMAGE_ASSET_SKIPPED',kind=kind,reason='resolve_rejected',file=str(path))
    timeline_intro=None
    if selected_intro:
     if not selected_intro.is_file():
@@ -125,7 +141,10 @@ def build(query,keep):
    missing=set(fs);counter=[0]
    phase='MEDIA_IMPORT';_stage(phase);life.log('MEDIA_SYNC_BEGIN',expected=len(fs),directories=[str(d) for d in dirs]);imported=sum(m.sync(mp,master,d,missing,counter,len(missing)) for d in dirs);life.log('MEDIA_SYNC_END',expected=len(fs),accepted=imported)
    phase='MEDIA_VERIFY';_verify_media(mp,master,dirs,fs)
-   tn=m.nodate(name) or name;phase='TIMELINE';_create_timeline(mp,master,shoot,tn,True,intro_first=timeline_intro)
+   fps_raw=pr.GetSetting('timelineFrameRate') or pr.GetSetting('timelinePlaybackFrameRate') or '25'
+   try:fps=float(str(fps_raw).replace(',','.'))
+   except ValueError:fps=25.0
+   tn=m.nodate(name) or name;phase='TIMELINE';_create_timeline(mp,master,shoot,tn,True,intro_first=timeline_intro,title_path=timeline_title,credits_path=timeline_credits,title_seconds=asset_cfg['title_seconds'],credits_seconds=asset_cfg['credits_seconds'],fps=fps)
    phase='DELIVERY';_stage(phase);m.apply_deliver(pr,src,deliver_preset,deliver_folder)
    phase='SAVE';_stage(phase)
    if not pm.SaveProject():raise RuntimeError('SaveProject() selhal.')
