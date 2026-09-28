@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import tkinter as tk
-from tkinter import ttk,filedialog
+from tkinter import ttk,filedialog,messagebox
 import managed_builder as m
 import intro_fingerprint
 from i18n import _
@@ -25,7 +25,7 @@ class ToolTip:
 
 def ask(project_name,status):
  result=[None]
- root=tk.Tk();root.title(_('Project update — DavinciResolveProjectManagement 1.23'));root.resizable(False,False)
+ root=tk.Tk();root.title(_('Project update — DavinciResolveProjectManagement 1.26'));root.resizable(False,False)
  bg=root.cget('bg')
  outer=tk.Frame(root,bg=bg,padx=20,pady=12);outer.grid(row=0,column=0)
  title_font=('Segoe UI',11,'bold');head_font=('Segoe UI',9,'bold');status_font=('Segoe UI Symbol',13,'bold');number_font=('Segoe UI',10,'bold')
@@ -76,7 +76,7 @@ def ask(project_name,status):
 
 def choose_intro(project_name,intros):
  result=[None]
- root=tk.Tk();root.title(_('Intro selection — DavinciResolveProjectManagement 1.23'));root.resizable(False,False)
+ root=tk.Tk();root.title(_('Intro selection — DavinciResolveProjectManagement 1.26'));root.resizable(False,False)
  frame=ttk.Frame(root,padding=16);frame.grid(row=0,column=0)
  ttk.Label(frame,text=project_name,font=('Segoe UI',10,'bold')).grid(row=0,column=0,sticky='w',pady=(0,8))
  ttk.Label(frame,text=_('The project name does not match any rule. Select an intro:')).grid(row=1,column=0,sticky='w',pady=(0,6))
@@ -90,7 +90,7 @@ def choose_intro(project_name,intros):
 
 
 def choose_title(project_name,candidates,titles_template):
- result=[None];root=tk.Tk();root.title(_('Title image selection — DavinciResolveProjectManagement 1.23'));root.resizable(False,False)
+ result=[None];root=tk.Tk();root.title(_('Title image selection — DavinciResolveProjectManagement 1.26'));root.resizable(False,False)
  frame=ttk.Frame(root,padding=16);frame.grid(row=0,column=0)
  ttk.Label(frame,text=project_name,font=('Segoe UI',10,'bold')).grid(row=0,column=0,columnspan=2,sticky='w',pady=(0,8))
  ttk.Label(frame,text=_('Select title image:')).grid(row=1,column=0,columnspan=2,sticky='w',pady=(0,6))
@@ -104,3 +104,11 @@ def choose_title(project_name,candidates,titles_template):
  ttk.Button(frame,text=_('Choose file…'),command=browse,width=16).grid(row=3,column=0,padx=(0,6))
  ttk.Button(frame,text='OK / Skip',command=ok,width=16).grid(row=3,column=1,padx=(6,0))
  root.bind('<Return>',ok);root.protocol('WM_DELETE_WINDOW',ok);m.center(root);root.focus_force();root.mainloop();return result[0]
+
+
+def ask_silence_trim(project_name):
+ return messagebox.askyesno(
+  _('Silence Trim'),
+  _('Remove silence from the beginning and end of SHOOTING clips?\n\nRAW will remain uncut and EDIT will contain reversible trimmed clip edges.'),
+  icon='question'
+ )
