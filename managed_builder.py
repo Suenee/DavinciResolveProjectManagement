@@ -47,7 +47,7 @@ class ConsoleProgress:
  def bar(self,message,current,total):
   ratio=current/total if total else 1
   if self.root is not None:
-   self.status.set(message);self.detail.set(f'{current} / {total}');self.progress['value']=max(0,min(100,ratio*100));self._pump()
+   self.status.set(message);self.detail.set(f'{current} / {total}');self.progress['value']=max(0,min(100,30+ratio*40));self._pump()
   else:self._write(f'\r{ratio*100:3.0f}% {message} {current}/{total}   ')
  def bar_done(self):
   if self.root is None:self._write('\n')
