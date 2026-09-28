@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $Repo = $env:DRPM_REPO
 $TargetBranch = if ($env:DRPM_BRANCH) { $env:DRPM_BRANCH } else { 'main' }
-$RunnerRevision = '1.20-eol-aware-dirty-guard'
+$RunnerRevision = '1.21-native-probe-output'
 $TargetVersion = 'unknown'
 $CurrentVersion = 'unknown'
 if (-not $Repo) { $Repo = Split-Path -Parent $MyInvocation.MyCommand.Path }
@@ -137,7 +137,13 @@ try {
     if ($pythonInstalled) { Mark-Dependency $python 'python' 'winget' 'Python.Python.3.13' }
     $dm=Join-Path $Repo 'dependency_manager.py'
     if (Test-Path $dm) { Run-Native $python @($dm,'cleanup','python','numpy','ffmpeg') | Out-Null }
-    $numpyCode=Run-Native $python @('-c','import numpy') -AllowFailure
+    # Probe optional Python modules without leaking an expected traceback to
+    # PowerShell 5.1's native stderr/error stream.
+    $oldPreference=$ErrorActionPreference;$ErrorActionPreference='Continue'
+    try {
+        & $python -c "import numpy" *> $null
+        $numpyCode=$LASTEXITCODE
+    } finally { $ErrorActionPreference=$oldPreference }
     if ($numpyCode -ne 0) {
         Run-Native $python @('-m','ensurepip','--upgrade') | Out-Null
         Run-Native $python @('-m','pip','install','--disable-pip-version-check','--upgrade','numpy') | Out-Null
