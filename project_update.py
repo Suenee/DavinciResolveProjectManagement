@@ -42,9 +42,9 @@ def _status(project,base,missing,src,deliver_folder,shoot):
  timelines=_matching_timelines(project,base);return {'missing':len(missing),'timeline':bool(timelines),'voice':any(timeline_audio.is_prepared(t) for t in timelines),'deliver':_deliver_ready(project,src,deliver_folder)}
 def ask(project_name,status):raise RuntimeError('Update dialog was not initialized.')
 def _stage(name):life.put(stage=name);life.log('WORKFLOW_STAGE',stage=name)
-def _create_timeline(mp,master,shoot,name,voice,intro_reference=None):
+def _create_timeline(mp,master,shoot,name,voice,intro_reference=None,intro_first=None):
  if _CREATOR is None:raise RuntimeError('Timeline creator není inicializován.')
- _stage('TIMELINE');timeline=_CREATOR(mp,master,shoot,name)
+ _stage('TIMELINE');timeline=_CREATOR(mp,master,shoot,name,intro_first)
  if voice:_stage('VOICE_ISOLATION');timeline=timeline_audio.configure(timeline)
  if voice and intro_reference:_stage('INTRO_MATCH');timeline=intro_match_routing.apply(mp,timeline,intro_reference)
  return timeline
@@ -59,6 +59,8 @@ def _verify_media(mp,master,dirs,fs):
 def build(query,keep):
  phase='INIT'
  root,folder,timeout,alive,deliver_preset,deliver_folder=m.cfg();src=m.resolve_project(root,query);name=src.name;life.begin_log_session('run',name);life.log('PROJECT_RESOLVED',query=query,name=name)
+ p=m.configparser.ConfigParser();p.read(m.CONFIG,encoding='utf-8');intro_root=m.Path(p.get('IntroDetection','Folder',fallback='').strip()) if p.get('IntroDetection','Folder',fallback='').strip() else None;news_intro=(intro_root/'UFO Disclosure.mp4') if intro_root and 'zprávy z exopolitiky' in name.casefold() else None
+ if news_intro:life.log('PROJECT_INTRO_RULE',project=name,file=str(news_intro),exists=news_intro.is_file())
  shoot=next((x for x in src.iterdir() if x.is_dir() and x.name.casefold()=='shooting'),src/'SHOOTING')
  if not shoot.is_dir():raise RuntimeError(f'Chybí SHOOTING: {shoot}')
  dirs=[shoot]+[d for dn in m.OPTIONAL for d in src.iterdir() if d.is_dir() and d.name.casefold()==dn.casefold()];fs={m.norm(p):p for d in dirs for p in m.allfiles(d)}
@@ -86,10 +88,17 @@ def build(query,keep):
    if mp is None:raise RuntimeError(f'Projekt nemá dostupný Media Pool: {name}')
    life.log('MEDIA_POOL_OK',name=name);life.log('ROOT_FOLDER_GET',name=name);master=mp.GetRootFolder()
    if master is None:raise RuntimeError(f'Projekt nemá dostupný kořen Media Poolu: {name}')
-   life.log('ROOT_FOLDER_OK',name=name);missing=set(fs);counter=[0]
-   phase='MEDIA_IMPORT';_stage(phase);imported=sum(m.sync(mp,master,d,missing,counter,len(missing)) for d in dirs)
+   life.log('ROOT_FOLDER_OK',name=name)
+   # These standard bins are part of every newly initialized project even when empty.
+   m.getbin(mp,master,'IMAGES');intro_bin=m.getbin(mp,master,'INTRO')
+   if news_intro:
+    if not news_intro.is_file():raise RuntimeError(f'Chybí znělka pro Zprávy z Exopolitiky: {news_intro}')
+    life.log('INTRO_IMPORT_CALL',bin='INTRO',file=str(news_intro));mp.SetCurrentFolder(intro_bin);intro_result=mp.ImportMedia([str(news_intro)]);life.log('INTRO_IMPORT_RETURN',bin='INTRO',file=str(news_intro),accepted=len(intro_result) if intro_result else 0)
+    if not intro_result:raise RuntimeError(f'DaVinci Resolve nepřijal znělku: {news_intro}')
+   missing=set(fs);counter=[0]
+   phase='MEDIA_IMPORT';_stage(phase);life.log('MEDIA_SYNC_BEGIN',expected=len(fs),directories=[str(d) for d in dirs]);imported=sum(m.sync(mp,master,d,missing,counter,len(missing)) for d in dirs);life.log('MEDIA_SYNC_END',expected=len(fs),accepted=imported)
    phase='MEDIA_VERIFY';_verify_media(mp,master,dirs,fs)
-   tn=m.nodate(name) or name;phase='TIMELINE';_create_timeline(mp,master,shoot,tn,True)
+   tn=m.nodate(name) or name;phase='TIMELINE';_create_timeline(mp,master,shoot,tn,True,intro_first=news_intro)
    phase='DELIVERY';_stage(phase);m.apply_deliver(pr,src,deliver_preset,deliver_folder)
    phase='SAVE';_stage(phase)
    if not pm.SaveProject():raise RuntimeError('SaveProject() selhal.')
