@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.30 - 28.09.2026
+
+- Fixed dependency probing on Windows PowerShell 5.1. A missing optional NumPy module is now tested with native stdout/stderr suppressed, so the expected import failure cannot leak into PowerShell's error stream and interrupt the upgrade before automatic installation.
+- NumPy is still installed automatically when the silent probe returns a non-zero exit code.
+
+
 ## 1.29 - 28.09.2026
 
 - Fixed the updater local-change guard for Windows/network-drive checkouts where Git reports tracked CMD/PS1 launchers as modified only because the worktree uses CRLF and repository comparison uses normalized LF.
