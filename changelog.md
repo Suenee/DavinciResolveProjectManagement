@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.23 - 28.09.2026
+
+- Completed the first full Czech/English UI localization pass using the gettext-based language layer.
+- Applying a different language in Settings now immediately refreshes the running project browser, menu, column headings, and subsequent dialogs without restarting DaVinci Resolve.
+- Added localized project creation, Settings, project update, intro selection, and title-image selection dialogs.
+- Updated application window titles to version 1.23.
+- Added active progress-window Z-order protection using the existing Windows foreground helper without leaving the window permanently always-on-top.
+- Every workflow stage now records progress/Resolve Z-order snapshots before and after foreground restoration and reasserts the progress window above Resolve.
+- After the final Resolve Edit-page/timeline/playhead operation, the progress window is explicitly restored above Resolve again before workflow completion.
+- Added `PROGRESS_ZORDER_BEFORE`, `PROGRESS_ZORDER_AFTER`, and `PROGRESS_ZORDER_ERROR` diagnostics so future foreground losses can be verified from the runtime log.
+
 ## 1.22 - 28.09.2026
 
 - Added an extensible GNU gettext localization layer with standard per-locale catalogs under `locale/<language>/LC_MESSAGES/`.
