@@ -96,12 +96,18 @@ def subs(folder):
  try:return folder.GetSubFolderList() or []
  except:return []
 def getbin(mp,parent,name):
- for s in subs(parent):
+ parent_name=parent.GetName() if parent is not None else '<none>'
+ life.log('MEDIA_BIN_LOOKUP',parent=parent_name,name=name)
+ children=subs(parent)
+ for s in children:
   if (s.GetName() or '').casefold()==name.casefold():
-   life.log('MEDIA_BIN_REUSE',name=name);return s
+   life.log('MEDIA_BIN_REUSE',parent=parent_name,name=name);return s
+ life.log('MEDIA_BIN_NOT_FOUND',parent=parent_name,name=name,children=len(children))
+ life.log('MEDIA_BIN_CREATE_CALL',parent=parent_name,name=name)
  b=mp.AddSubFolder(parent,name)
+ life.log('MEDIA_BIN_CREATE_RETURN',parent=parent_name,name=name,success=b is not None)
  if b is None:raise RuntimeError(f'Nelze vytvořit BIN {name}')
- life.log('MEDIA_BIN_CREATED',name=name);return b
+ return b
 def present(folder,out):
  try:clips=folder.GetClipList() or []
  except:clips=[]
@@ -111,15 +117,17 @@ def present(folder,out):
   if p:out.add(norm(p))
  for s in subs(folder):present(s,out)
 def sync(mp,parent,d,missing,counter,total):
- b=getbin(mp,parent,d.name);mp.SetCurrentFolder(b);sel=[p for p in direct(d) if norm(p) in missing];n=0
+ parent_name=parent.GetName() if parent is not None else '<none>'
+ files=direct(d);life.log('MEDIA_DIR_BEGIN',source=str(d),parent=parent_name,bin=d.name,direct_files=len(files))
+ b=getbin(mp,parent,d.name);life.log('MEDIA_SET_CURRENT_CALL',bin=d.name);current_ok=mp.SetCurrentFolder(b);life.log('MEDIA_SET_CURRENT_RETURN',bin=d.name,success=bool(current_ok));sel=[p for p in files if norm(p) in missing];n=0
  if sel:
-  life.log('MEDIA_BATCH_IMPORT',bin=d.name,requested=len(sel),files=[str(p) for p in sel])
+  life.log('MEDIA_IMPORT_CALL',bin=d.name,requested=len(sel),files=[str(p) for p in sel])
   x=mp.ImportMedia([str(p) for p in sel]);accepted=len(x) if x else 0;n+=accepted;counter[0]+=len(sel)
-  life.log('MEDIA_BATCH_RESULT',bin=d.name,requested=len(sel),accepted=accepted)
+  life.log('MEDIA_IMPORT_RETURN',bin=d.name,requested=len(sel),accepted=accepted)
   PROGRESS.bar(f'Import médií: {d.name}',counter[0],total);PROGRESS.bar_done()
  for c in sorted([x for x in d.iterdir() if x.is_dir()],key=lambda p:p.name.casefold()):
   if any(norm(p) in missing for p in allfiles(c)):n+=sync(mp,b,c,missing,counter,total)
- return n
+ life.log('MEDIA_DIR_END',source=str(d),bin=d.name,accepted=n);return n
 def shooting_order(folder):
  ordered=sorted(direct(folder),key=lambda p:(created(p),p.name.casefold()))
  for child in sorted([x for x in folder.iterdir() if x.is_dir()],key=lambda p:p.name.casefold()):ordered.extend(shooting_order(child))
@@ -132,8 +140,13 @@ def collect_clip_items(folder,out):
   except:path=''
   if path:out[norm(path)]=clip
  for sub in subs(folder):collect_clip_items(sub,out)
-def create_initial_timeline(mp,master,shoot,timeline_name):
- shoot_bin=getbin(mp,master,shoot.name);clip_map={};collect_clip_items(shoot_bin,clip_map);ordered_files=shooting_order(shoot);ordered_clips=[clip_map[norm(p)] for p in ordered_files if norm(p) in clip_map];timeline_bin=getbin(mp,master,'TIMELINES');mp.SetCurrentFolder(timeline_bin);timeline=mp.CreateTimelineFromClips(timeline_name,ordered_clips) if ordered_clips else mp.CreateEmptyTimeline(timeline_name)
+def create_initial_timeline(mp,master,shoot,timeline_name,intro_path=None):
+ shoot_bin=getbin(mp,master,shoot.name);clip_map={};collect_clip_items(shoot_bin,clip_map);ordered_files=shooting_order(shoot);ordered_clips=[]
+ if intro_path:
+  intro_bin=getbin(mp,master,'INTRO');intro_map={};collect_clip_items(intro_bin,intro_map);intro_clip=intro_map.get(norm(intro_path))
+  if intro_clip is None:raise RuntimeError(f'Intro není v Media Poolu: {intro_path}')
+  ordered_clips.append(intro_clip);life.log('TIMELINE_INTRO_FIRST',timeline=timeline_name,file=str(intro_path))
+ ordered_clips.extend(clip_map[norm(p)] for p in ordered_files if norm(p) in clip_map);timeline_bin=getbin(mp,master,'TIMELINES');mp.SetCurrentFolder(timeline_bin);timeline=mp.CreateTimelineFromClips(timeline_name,ordered_clips) if ordered_clips else mp.CreateEmptyTimeline(timeline_name)
  if timeline is None:raise RuntimeError(f'Nelze vytvořit timeline: {timeline_name}')
  return timeline
 def apply_deliver(project,src,preset,folder):
