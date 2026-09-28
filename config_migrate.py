@@ -10,6 +10,13 @@ def main():
  if not TEMPLATE.exists():raise SystemExit('ERROR: config.example.ini is missing.')
  if not CURRENT.exists():CURRENT.write_text(TEMPLATE.read_text(encoding='utf-8'),encoding='utf-8'); print('Created config.ini from config.example.ini.'); return 0
  current=load(CURRENT); template=load(TEMPLATE); added=[]
+ if current.has_section('Paths') and current.has_option('Paths','ProjectRoot'):
+  legacy=current.get('Paths','ProjectRoot').strip()
+  current.remove_option('Paths','ProjectRoot')
+  if legacy and not any(v.strip().casefold()==legacy.casefold() for _,v in current.items('Paths')):
+   key='Legacy';n=2
+   while current.has_option('Paths',key):key=f'Legacy{n}';n+=1
+   current.set('Paths',key,legacy);added.append(f'Paths.{key} (migrated from ProjectRoot)')
  for section in template.sections():
   if not current.has_section(section):current.add_section(section); added.append(f'[{section}]')
   existing={k.casefold():k for k,_ in current.items(section)}
