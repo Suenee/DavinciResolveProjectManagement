@@ -280,3 +280,6 @@ msgstr "Vybrat soubor…"
 
 msgid "Progress — DavinciResolveProjectManagement 1.23"
 msgstr "Průběh — DavinciResolveProjectManagement 1.23"
+
+msgid "Close ({seconds}s)"
+msgstr "Zavřít ({seconds}s)"
