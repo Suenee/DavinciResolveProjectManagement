@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.21 - 28.09.2026
+
+- Replaced the console-only workflow progress with a visible Tk progress window that reports Resolve startup, media import progress, timeline/audio/delivery/save stages, and completion.
+- Fixed Settings parsing for literal percent placeholders such as `%Y` by disabling ConfigParser interpolation and preserving key case.
+- Added guarded Settings-menu diagnostics with a full traceback in the application log instead of allowing GUI callback failures to terminate silently.
+- Changed still-image insertion to a clean Resolve-API experiment: set a documented MediaPoolItem video Mark In/Out range for the requested duration, then use plain `AppendToTimeline([item])`.
+- Added immediate duration readback from the returned TimelineItem. Requested and actual frame counts plus a verification result are logged; no generated video, image sequence, or FFmpeg workaround is used.
+- Removed the previous assumption that still-image `startFrame`/`endFrame` clipInfo values control timeline duration.
+- After project work is saved, Resolve is explicitly returned to the Edit page, the created/current timeline is activated, and its playhead is moved to the timeline start timecode.
+- Added logging of the final Edit-page, current-timeline, and playhead reset results.
+- Updated application window titles to version 1.21.
+
 ## 1.20 - 28.09.2026
 
 - Added detailed single-instance activation diagnostics when `run.cmd` is started while the application is already running.
@@ -9,7 +21,6 @@
 - Logs the measured application and DaVinci Resolve Z-order indexes so Resolve-specific foreground behavior can be diagnosed from real runtime evidence.
 - Fixed the centralized `DavinciResolveProjectManagement.log` path constant used by runtime logging.
 
-# Changelog
 
 ## 1.19 - 28.09.2026
 
