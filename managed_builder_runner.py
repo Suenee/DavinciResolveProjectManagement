@@ -26,8 +26,8 @@ def _choose(candidates,query):
  return project_browser.choose_project(candidates,query)
 
 
-def _create_initial_timeline(mp,master,shoot,name,intro_first=None):
- return _base_create_initial_timeline(mp,master,shoot,name,intro_first)
+def _create_initial_timeline(mp,master,shoot,name,intro_first=None,title_path=None,credits_path=None,title_seconds=20,credits_seconds=25,fps=25):
+ return _base_create_initial_timeline(mp,master,shoot,name,intro_first,title_path,credits_path,title_seconds,credits_seconds,fps)
 
 
 def _activate_current():
@@ -67,6 +67,7 @@ managed_builder.center=_center_above_resolve
 managed_builder.choose=_choose
 project_update.ask=project_update_dialog.ask
 project_update.set_intro_selector(project_update_dialog.choose_intro)
+project_update.set_title_selector(project_update_dialog.choose_title)
 project_update.set_timeline_creator(_create_initial_timeline)
 managed_builder.build=project_update.build
 
