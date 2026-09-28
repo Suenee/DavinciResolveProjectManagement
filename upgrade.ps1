@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $Repo = $env:DRPM_REPO
 $TargetBranch = if ($env:DRPM_BRANCH) { $env:DRPM_BRANCH } else { 'main' }
-$RunnerRevision = '1.21-native-probe-output'
+$RunnerRevision = '1.22-dependency-discovery'
 $TargetVersion = 'unknown'
 $CurrentVersion = 'unknown'
 if (-not $Repo) { $Repo = Split-Path -Parent $MyInvocation.MyCommand.Path }
@@ -44,8 +44,16 @@ function Find-Python {
 function Find-FFmpeg {
     $cmd=Get-Command 'ffmpeg.exe' -ErrorAction SilentlyContinue
     if ($cmd) { return $cmd.Source }
-    $link="$env:LOCALAPPDATA\Microsoft\WinGet\Links\ffmpeg.exe"
-    if (Test-Path $link) { return $link }
+    foreach ($link in @("$env:LOCALAPPDATA\Microsoft\WinGet\Links\ffmpeg.exe","$env:ProgramFiles\WinGet\Links\ffmpeg.exe")) {
+        if (Test-Path $link) { return $link }
+    }
+    foreach ($root in @("$env:LOCALAPPDATA\Microsoft\WinGet\Packages","$env:ProgramFiles\WinGet\Packages")) {
+        if (-not (Test-Path $root)) { continue }
+        $candidate=Get-ChildItem -LiteralPath $root -Filter ffmpeg.exe -File -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match '[\\/]Gyan\.FFmpeg[^\\/]*[\\/]' } |
+            Select-Object -First 1
+        if ($candidate) { return $candidate.FullName }
+    }
     return $null
 }
 function Mark-Dependency([string]$Python,[string]$Name,[string]$Kind,[string]$Package) {
@@ -155,10 +163,13 @@ try {
         $code=Run-Native 'winget.exe' @('install','--id','Gyan.FFmpeg','--exact','--silent','--accept-package-agreements','--accept-source-agreements') -AllowFailure
         $pkg='Gyan.FFmpeg'
         if ($code -ne 0) { Run-Native 'winget.exe' @('install','--id','Gyan.FFmpeg.Essentials','--exact','--silent','--accept-package-agreements','--accept-source-agreements') | Out-Null; $pkg='Gyan.FFmpeg.Essentials' }
+        # WinGet portable packages may be installed successfully while the
+        # current process still has the old PATH. Find-FFmpeg also searches the
+        # package payload directly instead of requiring a shell restart.
         $ffmpeg=Find-FFmpeg
         if ($ffmpeg) { Mark-Dependency $python 'ffmpeg' 'winget' $pkg }
     }
-    if (-not $ffmpeg) { Fail 'FFmpeg could not be located after installation.' }
+    if (-not $ffmpeg) { Fail 'FFmpeg could not be located after installation. WinGet may have installed the package, but neither its command alias nor package payload was found.' }
     Info "FFmpeg: $ffmpeg"
 
     Set-Phase 'CONFIGURATION'
