@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.12 - 28.09.2026
+
+- Fixed a fatal Windows console progress error where `sys.stdout.flush()` could raise `OSError(22, 'Invalid argument')` and abort project initialization during media import.
+- Console progress output is now best-effort and automatically disables itself when stdout is unavailable; workflow execution continues normally.
+- Applied the same safe console output path to DaVinci Resolve startup progress.
+- Added detailed Media Pool synchronization diagnostics for BIN creation/reuse, requested batch imports, and Resolve-accepted item counts.
+- Existing Resolve projects now log whether they are incomplete, including expected/present media counts and timeline, Voice Isolation, and DELIVERY readiness. This makes partially created projects recoverable through the normal update workflow.
+- Media verification remains a hard gate: later timeline, Voice Isolation, and DELIVERY automation does not continue until all expected media are present in the Media Pool.
+
 ## 1.11 - 27.08.2026
 
 - Added verified Resolve media import. After batch import, the application checks the Media Pool, retries missing files individually, and stops before later automation if files are still missing.
