@@ -68,9 +68,25 @@ def build(query,keep):
   if folder and not pm.OpenFolder(folder):raise RuntimeError(f'Project Library folder nenalezen: {folder}')
   projects=pm.GetProjectListInCurrentFolder() or [];existing=next((x for x in projects if x.casefold()==name.casefold()),None)
   if not existing:
-   phase='PROJECT_CREATE';_stage(phase);pr=pm.CreateProject(name)
-   if pr is None:raise RuntimeError(f'Nelze vytvořit projekt: {name}')
-   mp=pr.GetMediaPool();master=mp.GetRootFolder();missing=set(fs);counter=[0]
+   phase='PROJECT_CREATE';_stage(phase)
+   life.log('PROJECT_CREATE_CALL',name=name)
+   pr=pm.CreateProject(name)
+   life.log('PROJECT_CREATE_RETURN',name=name,returned=pr is not None)
+   if pr is None:
+    # Some Resolve builds may create the project but fail to return a usable object.
+    # Re-query the current library before declaring creation failed.
+    life.log('PROJECT_CREATE_RELOAD_BEGIN',name=name)
+    projects=pm.GetProjectListInCurrentFolder() or []
+    created_name=next((x for x in projects if x.casefold()==name.casefold()),None)
+    if created_name:pr=pm.LoadProject(created_name)
+    life.log('PROJECT_CREATE_RELOAD_END',name=name,found=bool(created_name),loaded=pr is not None)
+   if pr is None:raise RuntimeError(f'Nelze vytvořit ani znovu načíst projekt: {name}')
+   life.log('PROJECT_OBJECT_OK',name=name)
+   phase='MEDIA_POOL';_stage(phase);life.log('MEDIA_POOL_GET',name=name);mp=pr.GetMediaPool()
+   if mp is None:raise RuntimeError(f'Projekt nemá dostupný Media Pool: {name}')
+   life.log('MEDIA_POOL_OK',name=name);life.log('ROOT_FOLDER_GET',name=name);master=mp.GetRootFolder()
+   if master is None:raise RuntimeError(f'Projekt nemá dostupný kořen Media Poolu: {name}')
+   life.log('ROOT_FOLDER_OK',name=name);missing=set(fs);counter=[0]
    phase='MEDIA_IMPORT';_stage(phase);imported=sum(m.sync(mp,master,d,missing,counter,len(missing)) for d in dirs)
    phase='MEDIA_VERIFY';_verify_media(mp,master,dirs,fs)
    tn=m.nodate(name) or name;phase='TIMELINE';_create_timeline(mp,master,shoot,tn,True)
