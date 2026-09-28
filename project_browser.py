@@ -204,5 +204,5 @@ def choose_project(candidates,query='',root_path=None):
    life.log('SETTINGS_OPEN_CALL');settings(root,reload_config);life.log('SETTINGS_OPEN_RETURN')
   except Exception as e:
    life.log('SETTINGS_OPEN_ERROR',error=repr(e),traceback=traceback.format_exc())
-   messagebox.showerror(_('Settings'),_('Settings cannot be opened.\n\n{error}').format(error=e)),parent=root)
+   messagebox.showerror(_('Settings'),_('Settings cannot be opened.\n\n{error}').format(error=e),parent=root)
  pm.add_command(label=_('New...'),command=new);pm.add_command(label=_('Open...'),command=open_any);pm.add_command(label=_('Settings...'),command=open_settings);pm.add_separator();pm.add_command(label=_('Exit'),command=root.destroy);search_var.trace_add('write',rebuild);tree.bind('<Double-1>',ok);root.bind('<Return>',ok);root.bind('<Escape>',lambda e:root.destroy());rebuild();ui_windows.center_and_place_above_resolve(root);search.focus_set();root.mainloop();return result[0]
