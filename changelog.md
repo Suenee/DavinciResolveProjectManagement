@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.17 - 28.09.2026
+
+- Consolidated all application logs under the repository-root `logs/` directory.
+- Renamed the application runtime log to `logs/DavinciResolveProjectManagement.log`.
+- Logging mode `single` truncates that application log at the beginning of a new session; mode `all` appends subsequent sessions to the same application log.
+- Moved the updater transcript to `logs/upgrade.log`.
+- Upgrade migration removes obsolete repository-root `upgrade.log` and legacy `logs/latest.log` / `logs/history.log` files.
+
 ## 1.16 - 28.09.2026
 
 - Added configurable case-insensitive regular-expression intro mapping in `[IntroMapping]`; intro filenames are INI keys and project-name regular expressions are values.
