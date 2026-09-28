@@ -92,6 +92,7 @@ def _finish_resolve_ui(resolve,project,timeline,shooting_frame=None,fps=25):
   start_frame=int(timeline.GetStartFrame() or 0);base_tc=timeline.GetStartTimecode() or '00:00:00:00';target_tc=_frames_to_timecode(_timecode_to_frames(base_tc,fps)+(shooting_frame-start_frame),fps)
  else:target_tc=timeline.GetStartTimecode() if timeline is not None else None
  playhead_ok=bool(timeline.SetCurrentTimecode(target_tc)) if timeline is not None and target_tc else False
+ m.PROGRESS.ensure_visible('FINAL_UI_AFTER_RESOLVE')
  life.log('FINAL_UI_RESULT',current_timeline=current_ok,edit_page=page_ok,shooting_frame=shooting_frame,target_timecode=target_tc,playhead_shooting_start=playhead_ok)
  return current_ok and page_ok and playhead_ok
 def _create_timeline(mp,master,shoot,name,voice,intro_reference=None,intro_first=None,title_path=None,credits_path=None,title_seconds=20,credits_seconds=25,fps=25):
