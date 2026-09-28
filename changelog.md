@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.24 - 28.09.2026
+
+- Successful workflow completion now keeps the 100% progress window visible for five seconds so the final Done state can be read.
+- The former Cancel button becomes an active localized close button with a visible countdown: `Close (5s)` through `Close (1s)`.
+- Clicking the close button dismisses the completed progress window immediately; otherwise it closes automatically after the countdown.
+- The completed progress window is reasserted above Resolve before the countdown starts.
+- Cancelled or unsuccessful workflows are not auto-closed by the success countdown.
+- Added completion-hold and automatic-close diagnostics to the application log.
+
 ## 1.23 - 28.09.2026
 
 - Completed the first full Czech/English UI localization pass using the gettext-based language layer.
