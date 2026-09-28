@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.15 - 28.09.2026
+
+- Added call/return diagnostics for Media Pool BIN lookup/creation, current-folder changes, directory synchronization, and media imports so a blocking Resolve API call can be identified from the last log event.
+- New projects now explicitly ensure `Master/INTRO` and `Master/IMAGES` exist even when the corresponding project folders contain no media.
+- Projects whose name contains `Zprávy z Exopolitiky` import `UFO Disclosure.mp4` from the configured `[IntroDetection] Folder` into `Master/INTRO`.
+- The Exopolitics intro path is drive-independent and therefore works with configurations such as `D:\WORK\INTRO` or `N:\WORK\INTRO`.
+- The imported `UFO Disclosure.mp4` is inserted as the first clip of the initial timeline, followed by SHOOTING media in the existing deterministic order.
+- Missing or rejected Exopolitics intro media now stops initialization with an explicit diagnostic instead of silently creating a timeline without the requested intro.
+
 ## 1.14 - 28.09.2026
 
 - Added precise diagnostics around DaVinci Resolve project creation, including entry/return from `CreateProject()`, project-object validation, Media Pool access, and root-folder access.
