@@ -280,3 +280,6 @@ msgstr "Choose file…"
 
 msgid "Progress — DavinciResolveProjectManagement 1.23"
 msgstr "Progress — DavinciResolveProjectManagement 1.23"
+
+msgid "Close ({seconds}s)"
+msgstr "Close ({seconds}s)"
