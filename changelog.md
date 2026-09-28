@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.27 - 28.09.2026
+
+- Fixed fresh-bootstrap phase zero in `upgrade.cmd`: CMD expanded `%DRPM_BOOT%` before the variable was assigned because assignment and invocation were inside the same parenthesized block.
+- Bootstrap setup now runs outside that block, transfers to the temporary copy through an explicit label, propagates its exit code, and removes the temporary launcher afterwards.
+
+
 ## 1.26 - 28.09.2026
 
 - Added an authoritative root `VERSION` file and updated the upgrader to report the installed and target application versions from repository state instead of a duplicated hard-coded application version.
