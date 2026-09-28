@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.18 - 28.09.2026
+
+- Added configurable timeline title-image discovery under `[TimelineAssets]` using a `%Y` year placeholder in `TitlesRoot`.
+- Title matching normalizes project/file names, ranks candidates by name similarity and recency, automatically accepts a clear high-confidence match, and otherwise offers the configured TOP candidate count plus file browsing and Skip.
+- Title selection runs before intro selection and imports the selected image into `Master/IMAGES`.
+- Added automatic yearly end-credit discovery using `EndCreditsFile`; the current year is preferred and the latest available previous year is used as fallback.
+- Added configurable New Year boundary tolerance so adjacent year directories are considered around the year transition.
+- End credits are imported into `Master/IMAGES`.
+- New initial timeline order is: selected title still, selected intro, SHOOTING media, end-credits still.
+- Title and end-credit still durations are explicitly appended in timeline frames using configurable durations (defaults: 20 and 25 seconds) rather than relying on Resolve's global still-duration preference.
+- Missing or Resolve-rejected optional image assets are logged and skipped without aborting project initialization.
+
 ## 1.17 - 28.09.2026
 
 - Consolidated all application logs under the repository-root `logs/` directory.
