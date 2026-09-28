@@ -1,8 +1,8 @@
 $ErrorActionPreference = 'Stop'
 $Repo = $env:DRPM_REPO
 $TargetBranch = if ($env:DRPM_BRANCH) { $env:DRPM_BRANCH } else { 'main' }
-$RunnerRevision = '1.06-project-create-diagnostics'
-$TargetVersion = '1.14'
+$RunnerRevision = '1.07-media-pool-diagnostics'
+$TargetVersion = '1.15'
 $CurrentVersion = 'unknown'
 if (-not $Repo) { $Repo = Split-Path -Parent $MyInvocation.MyCommand.Path }
 $Repo = [System.IO.Path]::GetFullPath($Repo).TrimEnd('\')
