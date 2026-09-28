@@ -76,6 +76,10 @@ def _stage(name):
  labels={'RESOLVE_CONNECT':_('Connecting to DaVinci Resolve…'),'PROJECT_OPEN':_('Opening Project Library…'),'PROJECT_CREATE':_('Creating project…'),'MEDIA_POOL':_('Preparing Media Pool…'),'MEDIA_IMPORT':_('Importing media…'),'MEDIA_VERIFY':_('Verifying media…'),'TIMELINE':_('Creating timeline…'),'VOICE_ISOLATION':_('Setting Voice Isolation…'),'INTRO_MATCH':_('Processing intro…'),'DELIVERY':_('Setting DELIVERY…'),'SAVE':_('Saving project…'),'FINAL_UI':_('Preparing EDIT page…'),'COMPLETE':_('Done')}
  pct={'RESOLVE_CONNECT':5,'PROJECT_OPEN':12,'PROJECT_CREATE':18,'MEDIA_POOL':24,'MEDIA_IMPORT':30,'MEDIA_VERIFY':72,'TIMELINE':78,'VOICE_ISOLATION':84,'INTRO_MATCH':87,'DELIVERY':90,'SAVE':94,'FINAL_UI':97,'COMPLETE':100}
  m.PROGRESS.stage(labels.get(name,name),pct.get(name))
+def _timecode_to_frames(tc,fps):
+ fps_i=max(1,int(round(float(fps))))
+ try:h,mi,se,fr=[int(x) for x in tc.replace(';',':').split(':')];return ((h*3600+mi*60+se)*fps_i)+fr
+ except Exception:return 0
 def _frames_to_timecode(frame,fps):
  fps_i=max(1,int(round(float(fps))));frame=max(0,int(frame));hours=frame//(fps_i*3600);frame%=fps_i*3600;minutes=frame//(fps_i*60);frame%=fps_i*60;seconds=frame//fps_i;frames=frame%fps_i
  return f'{hours:02d}:{minutes:02d}:{seconds:02d}:{frames:02d}'
@@ -85,7 +89,7 @@ def _finish_resolve_ui(resolve,project,timeline,shooting_frame=None,fps=25):
  current_ok=bool(project.SetCurrentTimeline(timeline)) if timeline is not None else False
  page_ok=bool(resolve.OpenPage('edit'))
  if shooting_frame is not None:
-  start_frame=int(timeline.GetStartFrame() or 0);start_tc_frames=shooting_frame-start_frame;target_tc=_frames_to_timecode(start_tc_frames,fps)
+  start_frame=int(timeline.GetStartFrame() or 0);base_tc=timeline.GetStartTimecode() or '00:00:00:00';target_tc=_frames_to_timecode(_timecode_to_frames(base_tc,fps)+(shooting_frame-start_frame),fps)
  else:target_tc=timeline.GetStartTimecode() if timeline is not None else None
  playhead_ok=bool(timeline.SetCurrentTimecode(target_tc)) if timeline is not None and target_tc else False
  life.log('FINAL_UI_RESULT',current_timeline=current_ok,edit_page=page_ok,shooting_frame=shooting_frame,target_timecode=target_tc,playhead_shooting_start=playhead_ok)
