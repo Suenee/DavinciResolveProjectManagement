@@ -24,7 +24,7 @@ class ToolTip:
 
 def ask(project_name,status):
  result=[None]
- root=tk.Tk();root.title('Aktualizace projektu');root.resizable(False,False)
+ root=tk.Tk();root.title('Aktualizace projektu — DavinciResolveProjectManagement 1.19');root.resizable(False,False)
  bg=root.cget('bg')
  outer=tk.Frame(root,bg=bg,padx=20,pady=12);outer.grid(row=0,column=0)
  title_font=('Segoe UI',11,'bold');head_font=('Segoe UI',9,'bold');status_font=('Segoe UI Symbol',13,'bold');number_font=('Segoe UI',10,'bold')
@@ -75,7 +75,7 @@ def ask(project_name,status):
 
 def choose_intro(project_name,intros):
  result=[None]
- root=tk.Tk();root.title('Výběr znělky');root.resizable(False,False)
+ root=tk.Tk();root.title('Výběr znělky — DavinciResolveProjectManagement 1.19');root.resizable(False,False)
  frame=ttk.Frame(root,padding=16);frame.grid(row=0,column=0)
  ttk.Label(frame,text=project_name,font=('Segoe UI',10,'bold')).grid(row=0,column=0,sticky='w',pady=(0,8))
  ttk.Label(frame,text='Název projektu neodpovídá žádnému pravidlu. Vyber znělku:').grid(row=1,column=0,sticky='w',pady=(0,6))
@@ -89,7 +89,7 @@ def choose_intro(project_name,intros):
 
 
 def choose_title(project_name,candidates,titles_template):
- result=[None];root=tk.Tk();root.title('Výběr úvodního obrázku');root.resizable(False,False)
+ result=[None];root=tk.Tk();root.title('Výběr úvodního obrázku — DavinciResolveProjectManagement 1.19');root.resizable(False,False)
  frame=ttk.Frame(root,padding=16);frame.grid(row=0,column=0)
  ttk.Label(frame,text=project_name,font=('Segoe UI',10,'bold')).grid(row=0,column=0,columnspan=2,sticky='w',pady=(0,8))
  ttk.Label(frame,text='Vyber úvodní obrázek:').grid(row=1,column=0,columnspan=2,sticky='w',pady=(0,6))
