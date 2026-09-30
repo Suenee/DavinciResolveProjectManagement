@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.36 - 30.09.2026
+
+- Added ordered project automation profiles in `config.ini`; the first matching `Match` regular expression selects the workflow.
+- Optional title image, intro, end credits, and Silence Trim layers are now controlled per profile instead of running for every new project.
+- Added a News profile for `Zprávy z Exopolitiky`: title image and end credits enabled, `UFO Disclosure.mp4` selected as the default intro, and Silence Trim set to `ask`.
+- Added a Channeling profile with all four optional layers disabled.
+- Added a safe Default profile with all optional layers disabled.
+- Boolean profile layers use `0` / `1`; Intro accepts `0`, `ask`, or a filename, and SilenceTrim accepts `0`, `1`, or `ask`.
+- Added `PROFILE_MATCH` and `PROFILE_LAYERS` runtime diagnostics.
+- Replaced the obsolete example `IntroMapping` rules with profile-controlled intro selection.
+- Updated the example configuration to use named `IntroPaths` instead of the legacy single intro folder.
+
+
 ## 1.35 - 30.09.2026
 
 - Fixed title-image matching so technical `MM-NN-` filename prefixes are ignored when comparing an image with the project name.
