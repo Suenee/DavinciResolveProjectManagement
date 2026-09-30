@@ -278,9 +278,14 @@ def create_initial_timeline(mp,master,shoot,timeline_name,intro_path=None,title_
  return timeline,first_shooting_frame
 def apply_deliver(project,src,preset,folder):
  if not preset:return None
- target=(src/folder).resolve();target.mkdir(parents=True,exist_ok=True)
+ # Preserve the path representation selected by the configured project root.
+ # On Windows Path.resolve() may expand a mapped drive (for example N:) to UNC,
+ # which is valid but undesirable for Resolve and downstream tools.
+ target=src/folder;target.mkdir(parents=True,exist_ok=True)
+ target_text=str(target)
+ life.log('DELIVERY_TARGET',source_project=str(src),target=target_text)
  if not project.LoadRenderPreset(preset):raise RuntimeError(f'Nelze načíst render preset: {preset}')
- if not project.SetRenderSettings({'TargetDir':str(target)}):raise RuntimeError(f'Nelze nastavit Deliver TargetDir: {target}')
+ if not project.SetRenderSettings({'TargetDir':target_text}):raise RuntimeError(f'Nelze nastavit Deliver TargetDir: {target_text}')
  return target
 def finish(r,keep,alive):
  s=life.state()
