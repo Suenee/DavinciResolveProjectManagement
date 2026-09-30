@@ -241,4 +241,12 @@ def choose_project(candidates,query='',root_path=None):
   except Exception as e:
    life.log('SETTINGS_OPEN_ERROR',error=repr(e),traceback=traceback.format_exc())
    messagebox.showerror(_('Settings'),_('Settings cannot be opened.\n\n{error}').format(error=e),parent=root)
- pm.add_command(label=_('New...'),command=new);pm.add_command(label=_('Open...'),command=open_any);pm.add_command(label=_('Settings...'),command=open_settings);pm.add_separator();pm.add_command(label=_('Exit'),command=root.destroy);search_var.trace_add('write',rebuild);tree.bind('<Double-1>',ok);root.bind('<Return>',ok);root.bind('<Escape>',lambda e:root.destroy());rebuild();ui_windows.center_and_place_above_resolve(root);search.focus_set();root.mainloop();return result[0]
+ def exit_app(*_):
+  exit_requested[0]=True
+  life.log('APPLICATION_EXIT_REQUESTED')
+  try:
+   state=life.state()
+   if state.get('owned') and life.pid_running(state.get('pid')):life.force_stop_owned()
+  except Exception as e:life.log('APPLICATION_EXIT_CLEANUP_ERROR',error=repr(e))
+  root.destroy()
+ pm.add_command(label=_('New...'),command=new);pm.add_command(label=_('Open...'),command=open_any);pm.add_command(label=_('Settings...'),command=open_settings);pm.add_separator();pm.add_command(label=_('Exit'),command=exit_app);search_var.trace_add('write',rebuild);tree.bind('<Double-1>',ok);root.bind('<Return>',ok);root.bind('<Escape>',exit_app);root.protocol('WM_DELETE_WINDOW',exit_app);rebuild();ui_windows.center_and_place_above_resolve(root);search.focus_set();root.mainloop();return result[0]
