@@ -4,6 +4,7 @@ import configparser,hashlib,json,os,shutil,subprocess,tempfile
 from pathlib import Path
 import numpy as np
 import resolve_lifecycle as life
+from project_paths import first_available_named_path
 
 APP=Path(__file__).resolve().parent
 CONFIG=APP/'config.ini'
@@ -12,8 +13,11 @@ SUPPORTED={'.mp4','.mov','.mkv','.avi','.m4v','.wav','.mp3','.m4a','.aac','.flac
 
 
 def settings():
- p=configparser.ConfigParser();p.read(CONFIG,encoding='utf-8')
- folder=Path(p.get('IntroDetection','Folder',fallback=r'D:\WORK\INTRO')).expanduser()
+ p=configparser.ConfigParser(interpolation=None);p.optionxform=str;p.read(CONFIG,encoding='utf-8')
+ folder=first_available_named_path(p,'IntroPaths')
+ if folder is None:
+  legacy=p.get('IntroDetection','Folder',fallback=r'D:\WORK\INTRO').strip()
+  folder=Path(legacy).expanduser() if legacy else Path()
  search=max(10,p.getint('IntroDetection','SearchWindowSeconds',fallback=120))
  confidence=max(0.0,min(1.0,p.getfloat('IntroDetection','MinConfidence',fallback=0.78)))
  sample_rate=max(2000,p.getint('IntroDetection','SampleRate',fallback=8000))
