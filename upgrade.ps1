@@ -178,7 +178,7 @@ try {
     New-Item -ItemType Directory -Force -Path (Join-Path $Repo 'runtime'),(Join-Path $Repo 'runtime\intro_fingerprints'),$newLogs | Out-Null
 
     Set-Phase 'VERIFY'
-    $sources=@('resolve_project_builder.py','managed_builder.py','managed_builder_runner.py','project_browser.py','project_update.py','project_update_dialog.py','ui_windows.py','timeline_audio.py','intro_fingerprint.py','intro_match_routing.py','intro_detection.py','resolve_lifecycle.py','resolve_gui.py','config_migrate.py','dependency_manager.py','verified_import.py','timeline_assets.py','silence_trim.py','i18n.py')
+    $sources=@('resolve_project_builder.py','managed_builder.py','managed_builder_runner.py','project_browser.py','project_update.py','project_update_dialog.py','ui_windows.py','timeline_audio.py','intro_fingerprint.py','intro_match_routing.py','intro_detection.py','resolve_lifecycle.py','resolve_gui.py','config_migrate.py','dependency_manager.py','verified_import.py','timeline_assets.py','silence_trim.py','project_paths.py','project_profiles.py','i18n.py')
     $existing=@(); foreach($s in $sources){$p=Join-Path $Repo $s;if(Test-Path $p){$existing+=$p}else{Warn "Optional/expected source missing: $s"}}
     Run-Native $python (@('-m','py_compile')+$existing) | Out-Null
     $smoke="import sys;sys.path.insert(0,r'$Repo');import i18n;assert i18n.resolve_language('en')=='en';assert i18n.resolve_language('cs')=='cs';import managed_builder,project_update,project_browser"
