@@ -58,6 +58,7 @@ def choose_title(project_name,selector):
  if top and top[0][0]>=c['auto_score'] and (len(top)==1 or top[0][0]-top[1][0]>=0.08):
   life.log('TITLE_AUTO_SELECTED',file=str(top[0][2]),score=top[0][0]);return top[0][2]
  chosen=selector(project_name,[p for _,_,p in top],c['root']) if selector else None
+ if chosen is False:return False
  life.log('TITLE_MANUAL_SELECTION',file=str(chosen) if chosen else None);return Path(chosen) if chosen else None
 
 def find_credits(now=None):
