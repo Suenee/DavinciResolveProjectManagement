@@ -16,6 +16,7 @@ CONFIG=APP/'config.ini'; EXAMPLE=APP/'config.example.ini'; HISTORY=APP/'runtime'
 DATE=re.compile(r'^\d{8}\s+'); OPTIONAL=('IMAGES','PHOTOS','AUDIO')
 
 class WorkflowCancelled(RuntimeError):pass
+class WorkflowBack(RuntimeError):pass
 class ConsoleProgress:
  def __init__(self):self.root=None;self.status=None;self.detail=None;self.progress=None;self.cancel_button=None;self.cancel_requested=False;self.console_ok=True
  def _pump(self):
