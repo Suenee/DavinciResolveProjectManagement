@@ -107,7 +107,7 @@ def choose_title(project_name,candidates,titles_template):
 
 
 def ask_silence_trim(project_name):
- return messagebox.askyesno(
+ return messagebox.askyesnocancel(
   _('Silence Trim'),
   _('Remove silence from the beginning and end of SHOOTING clips?\n\nRAW will remain uncut and EDIT will contain reversible trimmed clip edges.'),
   icon='question'
