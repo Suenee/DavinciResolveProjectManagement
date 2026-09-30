@@ -10,6 +10,8 @@ def main():
  if not TEMPLATE.exists():raise SystemExit('ERROR: config.example.ini is missing.')
  if not CURRENT.exists():CURRENT.write_text(TEMPLATE.read_text(encoding='utf-8'),encoding='utf-8'); print('Created config.ini from config.example.ini.'); return 0
  current=load(CURRENT); template=load(TEMPLATE); added=[]
+ if current.has_section('SilenceTrim') and current.has_option('SilenceTrim','Enabled'):
+  current.remove_option('SilenceTrim','Enabled');added.append('removed legacy SilenceTrim.Enabled (now profile-controlled)')
  if current.has_section('IntroDetection') and current.has_option('IntroDetection','Folder'):
   legacy_intro=current.get('IntroDetection','Folder').strip();current.remove_option('IntroDetection','Folder')
   if legacy_intro:
