@@ -29,9 +29,11 @@ def set_silence_selector(func):
 
 def _select_intro(project_name):
  p=m.configparser.ConfigParser(interpolation=None);p.optionxform=str;p.read(m.CONFIG,encoding='utf-8')
- folder=p.get('IntroDetection','Folder',fallback='').strip()
- if not folder:return None
- root=m.Path(folder)
+ root=first_available_named_path(p,'IntroPaths')
+ if root is None:
+  folder=p.get('IntroDetection','Folder',fallback='').strip()
+  if not folder:return None
+  root=m.Path(folder)
  if p.has_section('IntroMapping'):
   for filename,pattern in p.items('IntroMapping'):
    try:matched=re.search(pattern,project_name,re.I) is not None
@@ -44,6 +46,7 @@ def _select_intro(project_name):
  life.log('INTRO_MAPPING_NO_MATCH',project=project_name,folder=str(root),choices=[x.name for x in intros])
  if _INTRO_SELECTOR is None:return None
  chosen=_INTRO_SELECTOR(project_name,intros)
+ if chosen is False:raise m.WorkflowBack()
  life.log('INTRO_MANUAL_SELECTION',project=project_name,file=str(chosen) if chosen else None)
  return m.Path(chosen) if chosen else None
 
@@ -119,8 +122,12 @@ def _verify_media(mp,master,dirs,fs):
 def build(query,keep):
  phase='INIT'
  root,folder,timeout,alive,deliver_preset,deliver_folder=m.cfg();src=m.resolve_project(root,query);name=src.name;life.begin_log_session('run',name);life.log('PROJECT_RESOLVED',query=query,name=name)
- selected_title=timeline_assets.choose_title(name,_TITLE_SELECTOR)
- selected_intro=_select_intro(name)
+ while True:
+  selected_title=timeline_assets.choose_title(name,_TITLE_SELECTOR)
+  if selected_title is False:return
+  try:selected_intro=_select_intro(name)
+  except m.WorkflowBack:continue
+  break
  selected_credits=timeline_assets.find_credits();asset_cfg=timeline_assets.config()
  m.PROGRESS.start(_('Preparing project {name}').format(name=name))
  shoot=next((x for x in src.iterdir() if x.is_dir() and x.name.casefold()=='shooting'),src/'SHOOTING')
@@ -134,7 +141,9 @@ def build(query,keep):
   silence_requested=False
   silence_cfg=silence_trim.config()
   if not existing and silence_cfg['enabled'] and _SILENCE_SELECTOR is not None:
-   silence_requested=bool(_SILENCE_SELECTOR(name))
+     silence_choice=_SILENCE_SELECTOR(name)
+   if silence_choice is None:raise m.WorkflowBack()
+   silence_requested=bool(silence_choice)
    life.log('SILENCE_TRIM_USER_CHOICE',project=name,enabled=True,selected=silence_requested)
   elif not existing:
    life.log('SILENCE_TRIM_USER_CHOICE',project=name,enabled=silence_cfg['enabled'],selected=False)
@@ -222,6 +231,8 @@ def build(query,keep):
     _finish_resolve_ui(r,pr,locals().get('created_timeline') or pr.GetCurrentTimeline(),locals().get('shooting_frame'),float(pr.GetSetting('timelineFrameRate') or 25))
    else:print('[OK] Nebyla vybrána žádná změna.')
   phase='COMPLETE';_stage(phase)
+ except m.WorkflowBack:
+  life.log('WORKFLOW_BACK_AT_NONWIZARD_STAGE',phase=phase);return
  except m.WorkflowCancelled:
   life.log('WORKFLOW_CANCELLED',phase=phase);return
  except Exception as exc:
