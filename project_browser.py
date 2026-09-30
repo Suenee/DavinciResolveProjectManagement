@@ -9,7 +9,7 @@ import ui_windows
 import resolve_lifecycle as life
 import i18n
 from i18n import _
-from project_paths import active_root, configured_roots
+from project_paths import active_root, configured_roots, named_paths
 
 APP=Path(__file__).resolve().parent; CONFIG=APP/'config.ini'
 DATE_RE=re.compile(r'^(\d{8})\s+(.+?)(?:\s+(\d+))?$'); MEDIA_EXT={'.mp4','.mov','.mxf','.avi','.mkv','.mts','.m2ts','.wav','.mp3','.aac','.flac','.jpg','.jpeg','.png','.tif','.tiff','.bmp','.webp'}
@@ -160,10 +160,10 @@ def settings(parent,on_saved=None):
  ttk.Button(gp,text='…',width=3,command=resolve_pick).grid(row=2,column=2,padx=(4,0))
  gd=group(left,'DaVinci Resolve');number(gd,0,'DaVinciResolve','StartupTimeout','Startup timeout (s)',10,600);number(gd,1,'DaVinciResolve','AliveTimeout','Alive timeout (s)',0,86400)
  gdel=group(left,'DELIVERY');text(gdel,0,'Deliver','Preset','Preset');text(gdel,1,'Deliver','Folder',_('Folder'))
- gl=group(left,_('Logging'));lv=tk.StringVar(value=p.get(_('Logging'),'Mode',fallback='single'));ttk.Label(gl,text=_('Mode:')).grid(row=0,column=0,sticky='w',padx=(0,8));ttk.Combobox(gl,textvariable=lv,values=('off','single','all'),state='readonly',width=22).grid(row=0,column=1,sticky='ew');values[(_('Logging'),'Mode')]=lv
+ gl=group(left,_('Logging'));lv=tk.StringVar(value=p.get('Logging','Mode',fallback='single'));ttk.Label(gl,text=_('Mode:')).grid(row=0,column=0,sticky='w',padx=(0,8));ttk.Combobox(gl,textvariable=lv,values=('off','single','all'),state='readonly',width=22).grid(row=0,column=1,sticky='ew');values[('Logging','Mode')]=lv
  gt=group(right,'Timeline');number(gt,0,'Timeline','VoiceIsolationAmount','Voice Isolation (%)',0,100);bv=tk.BooleanVar(value=p.getboolean('Timeline','CreateCleanAudioTrack',fallback=True));ttk.Label(gt,text=_('Clean audio track:')).grid(row=1,column=0,sticky='w');ttk.Checkbutton(gt,variable=bv).grid(row=1,column=1,sticky='w');values[('Timeline','CreateCleanAudioTrack')]=bv;text(gt,2,'Timeline','CleanAudioTrackName',_('Audio track name'))
  ga=group(right,_('Title image / End credits'));folder(ga,0,'TimelineAssets','TitlesRoot','Titles',True);number(ga,1,'TimelineAssets','TitleDurationSeconds',_('Title duration (s)'),1,600);number(ga,2,'TimelineAssets','TitleCandidateCount',_('TOP candidates'),1,20);number(ga,3,'TimelineAssets','TitleAutoMatchScore','Auto match (%)',0,100,lambda x:round(float(x)*100) if float(x)<=1 else round(float(x)));number(ga,4,'TimelineAssets','YearBoundaryToleranceDays',_('Year boundary (days)'),0,60);text(ga,5,'TimelineAssets','EndCreditsFile',_('End credits file'));number(ga,6,'TimelineAssets','EndCreditsDurationSeconds',_('End credits duration (s)'),1,600)
- gi=group(right,_('Intro'));folder(gi,0,'IntroDetection','Folder',_('Intro folder'));number(gi,1,'IntroDetection','SearchWindowSeconds',_('Search window (min)'),1,5,lambda x:max(1,min(5,round(float(x)/60))));number(gi,2,'IntroDetection','MinConfidence',_('Min. confidence (%)'),0,100,lambda x:round(float(x)*100) if float(x)<=1 else round(float(x)))
+ gi=group(right,_('Intro'));intro_paths=', '.join(f'{key}: {path}' for key,path in named_paths(p,'IntroPaths')) or '-';ttk.Label(gi,text=_('Intro paths:')).grid(row=0,column=0,sticky='nw',padx=(0,8),pady=2);ttk.Label(gi,text=intro_paths,wraplength=260,justify='left').grid(row=0,column=1,columnspan=2,sticky='w',pady=2);number(gi,1,'IntroDetection','SearchWindowSeconds',_('Search window (min)'),1,5,lambda x:max(1,min(5,round(float(x)/60))));number(gi,2,'IntroDetection','MinConfidence',_('Min. confidence (%)'),0,100,lambda x:round(float(x)*100) if float(x)<=1 else round(float(x)))
  gs=group(right,_('Silence Trim'));sv=tk.BooleanVar(value=p.getboolean('SilenceTrim','Enabled',fallback=True));ttk.Label(gs,text=_('Enabled:')).grid(row=0,column=0,sticky='w');ttk.Checkbutton(gs,variable=sv).grid(row=0,column=1,sticky='w');values[('SilenceTrim','Enabled')]=sv
  number(gs,1,'SilenceTrim','SearchSeconds',_('Detection range (s)'),5,120)
  number(gs,2,'SilenceTrim','ThresholdDb',_('Silence level (dBFS)'),-60,-20)
@@ -186,8 +186,7 @@ def settings(parent,on_saved=None):
    if not key or not raw or key.casefold() in keys:messagebox.showerror(_('Settings'),_('Project path names must be unique and both name and path are required.'),parent=win);return
    keys.add(key.casefold());roots.append((key,raw))
   if not roots or not any(Path(raw).is_dir() for _,raw in roots):messagebox.showerror(_('Settings'),_('At least one configured project path must exist.'),parent=win);return
-  intro=Path(values[('IntroDetection','Folder')].get());resolve_exe=rv.get().strip();titles=values[('TimelineAssets','TitlesRoot')].get().strip()
-  if not intro.is_dir():messagebox.showerror(_('Settings'),_('Intro folder must be an existing folder.'),parent=win);return
+  resolve_exe=rv.get().strip();titles=values[('TimelineAssets','TitlesRoot')].get().strip()
   if '%Y' not in titles:messagebox.showerror(_('Settings'),_('Titles must contain the %Y placeholder.'),parent=win);return
   if resolve_exe and (not Path(resolve_exe).is_file() or Path(resolve_exe).name.casefold()!='resolve.exe'):messagebox.showerror(_('Settings'),_('Resolve EXE must point to Resolve.exe.'),parent=win);return
   try:
