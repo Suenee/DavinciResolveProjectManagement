@@ -72,7 +72,7 @@ def _unique_timeline_name(project,base):
  return f'{base} ({n})'
 
 def _deliver_ready(project,src,folder):
- expected=m.norm((src/folder).resolve())
+ expected=m.norm(src/folder)
  try:
   if not hasattr(project,'GetRenderSettings'):return False
   settings=project.GetRenderSettings() or {};target=settings.get('TargetDir') or settings.get('targetDir') or ''
