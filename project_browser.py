@@ -164,17 +164,14 @@ def settings(parent,on_saved=None):
  gt=group(right,'Timeline');number(gt,0,'Timeline','VoiceIsolationAmount','Voice Isolation (%)',0,100);bv=tk.BooleanVar(value=p.getboolean('Timeline','CreateCleanAudioTrack',fallback=True));ttk.Label(gt,text=_('Clean audio track:')).grid(row=1,column=0,sticky='w');ttk.Checkbutton(gt,variable=bv).grid(row=1,column=1,sticky='w');values[('Timeline','CreateCleanAudioTrack')]=bv;text(gt,2,'Timeline','CleanAudioTrackName',_('Audio track name'))
  ga=group(right,_('Title image / End credits'));folder(ga,0,'TimelineAssets','TitlesRoot','Titles',True);number(ga,1,'TimelineAssets','TitleDurationSeconds',_('Title duration (s)'),1,600);number(ga,2,'TimelineAssets','TitleCandidateCount',_('TOP candidates'),1,20);number(ga,3,'TimelineAssets','TitleAutoMatchScore','Auto match (%)',0,100,lambda x:round(float(x)*100) if float(x)<=1 else round(float(x)));number(ga,4,'TimelineAssets','YearBoundaryToleranceDays',_('Year boundary (days)'),0,60);text(ga,5,'TimelineAssets','EndCreditsFile',_('End credits file'));number(ga,6,'TimelineAssets','EndCreditsDurationSeconds',_('End credits duration (s)'),1,600)
  gi=group(right,_('Intro'));intro_paths=', '.join(f'{key}: {path}' for key,path in named_paths(p,'IntroPaths')) or '-';ttk.Label(gi,text=_('Intro paths:')).grid(row=0,column=0,sticky='nw',padx=(0,8),pady=2);ttk.Label(gi,text=intro_paths,wraplength=260,justify='left').grid(row=0,column=1,columnspan=2,sticky='w',pady=2);number(gi,1,'IntroDetection','SearchWindowSeconds',_('Search window (min)'),1,5,lambda x:max(1,min(5,round(float(x)/60))));number(gi,2,'IntroDetection','MinConfidence',_('Min. confidence (%)'),0,100,lambda x:round(float(x)*100) if float(x)<=1 else round(float(x)))
- gs=group(right,_('Silence Trim'));sv=tk.BooleanVar(value=p.getboolean('SilenceTrim','Enabled',fallback=True));ttk.Label(gs,text=_('Enabled:')).grid(row=0,column=0,sticky='w');ttk.Checkbutton(gs,variable=sv).grid(row=0,column=1,sticky='w');values[('SilenceTrim','Enabled')]=sv
- number(gs,1,'SilenceTrim','SearchSeconds',_('Detection range (s)'),5,120)
- number(gs,2,'SilenceTrim','ThresholdDb',_('Silence level (dBFS)'),-60,-20)
- number(gs,3,'SilenceTrim','MinimumSoundSeconds',_('Minimum sound (s)'),0.05,2.0,increment=0.05)
- number(gs,4,'SilenceTrim','KeepBeforeSeconds',_('Space before speech (s)'),0.0,5.0,increment=0.05)
- number(gs,5,'SilenceTrim','KeepAfterSeconds',_('Space after speech (s)'),0.0,5.0,increment=0.05)
+ gs=group(right,_('Silence Trim'));number(gs,0,'SilenceTrim','SearchSeconds',_('Detection range (s)'),5,120)
+ number(gs,1,'SilenceTrim','ThresholdDb',_('Silence level (dBFS)'),-60,-20)
+ number(gs,2,'SilenceTrim','MinimumSoundSeconds',_('Minimum sound (s)'),0.05,2.0,increment=0.05)
+ number(gs,3,'SilenceTrim','KeepBeforeSeconds',_('Space before speech (s)'),0.0,5.0,increment=0.05)
+ number(gs,4,'SilenceTrim','KeepAfterSeconds',_('Space after speech (s)'),0.0,5.0,increment=0.05)
  def dependencies(*_):
   widgets[('Timeline','CleanAudioTrackName')].configure(state='normal' if bv.get() else 'disabled')
-  for key in ('SearchSeconds','ThresholdDb','MinimumSoundSeconds','KeepBeforeSeconds','KeepAfterSeconds'):
-   widgets[('SilenceTrim',key)].configure(state='normal' if sv.get() else 'disabled')
- bv.trace_add('write',dependencies);sv.trace_add('write',dependencies);dependencies()
+ bv.trace_add('write',dependencies);dependencies()
  def save():
   chosen_lang=next((code for code,label in lang_labels.items() if label==language_var.get()),'auto')
   if not p.has_section('General'):p.add_section('General')
