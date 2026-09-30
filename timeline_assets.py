@@ -56,7 +56,8 @@ def choose_title(project_name,selector):
  c=config();top=title_candidates(project_name)
  if top and top[0][0]>=c['auto_score'] and (len(top)==1 or top[0][0]-top[1][0]>=0.08):
   life.log('TITLE_AUTO_SELECTED',file=str(top[0][1]),score=top[0][0]);return top[0][1]
- chosen=selector(project_name,[p for _,p in top],c['root']) if selector else None
+ display_candidates=sorted([p for _,p in top],key=lambda p:p.name.casefold(),reverse=True)
+ chosen=selector(project_name,display_candidates,c['root']) if selector else None
  if chosen is False:return False
  life.log('TITLE_MANUAL_SELECTION',file=str(chosen) if chosen else None);return Path(chosen) if chosen else None
 
