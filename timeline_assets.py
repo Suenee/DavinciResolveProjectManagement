@@ -43,21 +43,20 @@ def title_candidates(project_name,now=None):
   if not folder.is_dir():continue
   for path in folder.iterdir():
    if not path.is_file() or path.suffix.casefold() not in IMAGE_EXT:continue
-   core=_title_core(path);ratio=SequenceMatcher(None,query,core).ratio();contains=1.0 if query and (query in core or core in query) else 0.0
-   score=max(ratio,contains)
-   try:mtime=path.stat().st_mtime
-   except OSError:mtime=0
-   found.append((score,mtime,path))
- found.sort(key=lambda x:(x[0],x[1]),reverse=True)
+   core=_title_core(path);score=SequenceMatcher(None,query,core).ratio()
+   found.append((score,path))
+ # Similarity decides relevance. For equal/similar candidates the visible order is filename Z-A.
+ found.sort(key=lambda x:x[1].name.casefold(),reverse=True)
+ found.sort(key=lambda x:x[0],reverse=True)
  top=found[:max(1,c['candidate_count'])]
- life.log('TITLE_CANDIDATES',project=project_name,query=query,candidates=[{'file':str(p),'score':round(s,4)} for s,_,p in top])
+ life.log('TITLE_CANDIDATES',project=project_name,query=query,candidates=[{'file':str(p),'match_name':_title_core(p),'score':round(s,4)} for s,p in top])
  return top
 
 def choose_title(project_name,selector):
  c=config();top=title_candidates(project_name)
  if top and top[0][0]>=c['auto_score'] and (len(top)==1 or top[0][0]-top[1][0]>=0.08):
-  life.log('TITLE_AUTO_SELECTED',file=str(top[0][2]),score=top[0][0]);return top[0][2]
- chosen=selector(project_name,[p for _,_,p in top],c['root']) if selector else None
+  life.log('TITLE_AUTO_SELECTED',file=str(top[0][1]),score=top[0][0]);return top[0][1]
+ chosen=selector(project_name,[p for _,p in top],c['root']) if selector else None
  if chosen is False:return False
  life.log('TITLE_MANUAL_SELECTION',file=str(chosen) if chosen else None);return Path(chosen) if chosen else None
 
