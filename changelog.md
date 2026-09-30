@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.37 - 30.09.2026
+
+- Preserve the configured Windows path representation when setting the DaVinci Resolve DELIVERY target.
+- Mapped project roots such as `N:\\...` are now passed to Resolve as mapped-drive paths instead of being expanded to their UNC backing path.
+- Removed `Path.resolve()` from DELIVERY target creation and readiness comparison.
+- Added `DELIVERY_TARGET` diagnostics recording the project path and the exact target path passed to Resolve.
+- Audited remaining `Path.resolve()` uses: application-local paths and fingerprint cache identity remain intentional; the same-volume filesystem check may canonicalize paths internally but does not pass the result to Resolve.
+
+
 ## 1.36 - 30.09.2026
 
 - Added ordered project automation profiles in `config.ini`; the first matching `Match` regular expression selects the workflow.
