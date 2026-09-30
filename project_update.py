@@ -8,6 +8,7 @@ import intro_match_routing
 import verified_import
 import timeline_assets
 import silence_trim
+import project_profiles
 from i18n import _
 from project_paths import first_available_named_path
 
@@ -28,23 +29,24 @@ def set_title_selector(func):
 def set_silence_selector(func):
  global _SILENCE_SELECTOR;_SILENCE_SELECTOR=func
 
-def _select_intro(project_name):
+def _intro_root():
  p=m.configparser.ConfigParser(interpolation=None);p.optionxform=str;p.read(m.CONFIG,encoding='utf-8')
  root=first_available_named_path(p,'IntroPaths')
  if root is None:
   folder=p.get('IntroDetection','Folder',fallback='').strip()
-  if not folder:return None
-  root=m.Path(folder)
- if p.has_section('IntroMapping'):
-  for filename,pattern in p.items('IntroMapping'):
-   try:matched=re.search(pattern,project_name,re.I) is not None
-   except re.error as exc:
-    life.log('INTRO_MAPPING_INVALID',file=filename,pattern=pattern,error=str(exc));continue
-   life.log('INTRO_MAPPING_TEST',project=project_name,file=filename,pattern=pattern,matched=matched)
-   if matched:
-    chosen=root/filename;life.log('INTRO_MAPPING_MATCH',project=project_name,file=str(chosen),exists=chosen.is_file());return chosen
- intros=sorted([x for x in root.iterdir() if x.is_file() and x.suffix.casefold() in ('.mp4','.mov','.mxf','.avi','.mkv')],key=lambda x:x.name.casefold()) if root.is_dir() else []
- life.log('INTRO_MAPPING_NO_MATCH',project=project_name,folder=str(root),choices=[x.name for x in intros])
+  root=m.Path(folder) if folder else None
+ return root
+
+def _select_intro(project_name,intro_mode):
+ mode=str(intro_mode or '0').strip()
+ if mode.casefold() in ('0','false','off','none',''):return None
+ root=_intro_root()
+ if root is None:return None
+ if mode.casefold()!='ask':
+  chosen=root/mode
+  life.log('INTRO_PROFILE_SELECTED',project=project_name,file=str(chosen),exists=chosen.is_file())
+  return chosen
+ intros=sorted([x for x in root.iterdir() if x.is_file() and x.suffix.casefold() in ('.mp4','.mov','.mxf','.avi','.mkv')],key=lambda x:x.name.casefold(),reverse=True) if root.is_dir() else []
  if _INTRO_SELECTOR is None:return None
  chosen=_INTRO_SELECTOR(project_name,intros)
  if chosen is False:raise m.WorkflowBack()
@@ -123,13 +125,14 @@ def _verify_media(mp,master,dirs,fs):
 def build(query,keep):
  phase='INIT'
  root,folder,timeout,alive,deliver_preset,deliver_folder=m.cfg();src=m.resolve_project(root,query);name=src.name;life.begin_log_session('run',name);life.log('PROJECT_RESOLVED',query=query,name=name)
+ profile=project_profiles.resolve(name)
  while True:
-  selected_title=timeline_assets.choose_title(name,_TITLE_SELECTOR)
+  selected_title=timeline_assets.choose_title(name,_TITLE_SELECTOR) if profile.title_image else None
   if selected_title is False:return
-  try:selected_intro=_select_intro(name)
+  try:selected_intro=_select_intro(name,profile.intro)
   except m.WorkflowBack:continue
   break
- selected_credits=timeline_assets.find_credits();asset_cfg=timeline_assets.config()
+ selected_credits=timeline_assets.find_credits() if profile.end_credits else None;asset_cfg=timeline_assets.config()
  m.PROGRESS.start(_('Preparing project {name}').format(name=name))
  shoot=next((x for x in src.iterdir() if x.is_dir() and x.name.casefold()=='shooting'),src/'SHOOTING')
  if not shoot.is_dir():raise RuntimeError(f'Chybí SHOOTING: {shoot}')
@@ -140,16 +143,18 @@ def build(query,keep):
   if folder and not pm.OpenFolder(folder):raise RuntimeError(f'Project Library folder nenalezen: {folder}')
   projects=pm.GetProjectListInCurrentFolder() or [];existing=next((x for x in projects if x.casefold()==name.casefold()),None)
   silence_requested=False
-  silence_cfg=silence_trim.config()
-  if not existing and silence_cfg['enabled'] and _SILENCE_SELECTOR is not None:
+  if not existing and profile.silence_trim=='1':
+   silence_requested=True
+   life.log('SILENCE_TRIM_PROFILE_CHOICE',project=name,mode='1',selected=True)
+  elif not existing and profile.silence_trim=='ask' and _SILENCE_SELECTOR is not None:
    silence_choice=_SILENCE_SELECTOR(name)
    if silence_choice is None:
     life.log('SILENCE_TRIM_BACK_REQUESTED',project=name)
     raise m.WorkflowCancelled(_('Selection cancelled.'))
    silence_requested=bool(silence_choice)
-   life.log('SILENCE_TRIM_USER_CHOICE',project=name,enabled=True,selected=silence_requested)
+   life.log('SILENCE_TRIM_PROFILE_CHOICE',project=name,mode='ask',selected=silence_requested)
   elif not existing:
-   life.log('SILENCE_TRIM_USER_CHOICE',project=name,enabled=silence_cfg['enabled'],selected=False)
+   life.log('SILENCE_TRIM_PROFILE_CHOICE',project=name,mode=profile.silence_trim,selected=False)
   if not existing:
    phase='PROJECT_CREATE';_stage(phase)
    life.log('PROJECT_CREATE_CALL',name=name)
