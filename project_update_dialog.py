@@ -86,7 +86,8 @@ def choose_intro(project_name,intros):
  def ok(*_):
   selected=value.get();result[0]=next((str(p) for p in intros if p.name==selected),None);root.destroy()
  ttk.Button(buttons,text='OK',command=ok,width=12).pack()
- root.bind('<Return>',ok);root.protocol('WM_DELETE_WINDOW',ok);m.center(root);root.focus_force();root.mainloop();return result[0]
+ def back(*_):result[0]=False;root.destroy()
+ root.bind('<Return>',ok);root.bind('<Escape>',back);root.protocol('WM_DELETE_WINDOW',back);m.center(root);root.focus_force();root.mainloop();return result[0]
 
 
 def choose_title(project_name,candidates,titles_template):
@@ -94,16 +95,17 @@ def choose_title(project_name,candidates,titles_template):
  frame=ttk.Frame(root,padding=16);frame.grid(row=0,column=0)
  ttk.Label(frame,text=project_name,font=('Segoe UI',10,'bold')).grid(row=0,column=0,columnspan=2,sticky='w',pady=(0,8))
  ttk.Label(frame,text=_('Select title image:')).grid(row=1,column=0,columnspan=2,sticky='w',pady=(0,6))
- labels=[p.name for p in candidates];value=tk.StringVar(value=labels[0] if labels else 'Skip')
- combo=ttk.Combobox(frame,textvariable=value,values=labels+['Skip'],state='readonly',width=58);combo.grid(row=2,column=0,columnspan=2,sticky='ew',pady=(0,10))
+ none_label=_('No title image');labels=[p.name for p in candidates];value=tk.StringVar(value=labels[0] if labels else none_label)
+ combo=ttk.Combobox(frame,textvariable=value,values=labels+[none_label],state='readonly',width=58);combo.grid(row=2,column=0,columnspan=2,sticky='ew',pady=(0,10))
  def browse():
   path=filedialog.askopenfilename(parent=root,title=_('Select title image'),filetypes=[(_('Images'),'*.jpg *.jpeg *.png *.webp *.tif *.tiff *.bmp'),(_('All files'),'*.*')])
   if path:result[0]=path;root.destroy()
  def ok(*_):
   selected=value.get();result[0]=next((str(p) for p in candidates if p.name==selected),None);root.destroy()
  ttk.Button(frame,text=_('Choose file…'),command=browse,width=16).grid(row=3,column=0,padx=(0,6))
- ttk.Button(frame,text='OK / Skip',command=ok,width=16).grid(row=3,column=1,padx=(6,0))
- root.bind('<Return>',ok);root.protocol('WM_DELETE_WINDOW',ok);m.center(root);root.focus_force();root.mainloop();return result[0]
+ ttk.Button(frame,text='OK',command=ok,width=16).grid(row=3,column=1,padx=(6,0))
+ def back(*_):result[0]=False;root.destroy()
+ root.bind('<Return>',ok);root.bind('<Escape>',back);root.protocol('WM_DELETE_WINDOW',back);m.center(root);root.focus_force();root.mainloop();return result[0]
 
 
 def ask_silence_trim(project_name):
