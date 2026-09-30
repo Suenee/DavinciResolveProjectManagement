@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.35 - 30.09.2026
+
+- Fixed title-image matching so technical `MM-NN-` filename prefixes are ignored when comparing an image with the project name.
+- The full project subject remains significant for matching, e.g. `Channeling 6` is compared with the title-image subject rather than interpreting `05-20-` as project metadata.
+- Removed filesystem modification time from title-image ranking.
+- Ambiguous title-image matches now require user selection instead of silently choosing one candidate.
+- Candidate presentation uses filename Z-A as the deterministic tie order.
+- Added an explicit localized `No title image` choice. It is distinct from closing the dialog.
+- Closing title/intro selection or pressing Escape now means Back rather than accepting the default selection.
+- Repaired two regressions introduced during the interrupted 1.34 update: the missing named-intro-path import/workflow indentation and main-browser exit state initialization.
+
+
 ## 1.33 - 28.09.2026
 
 - Fixed startup failure in the managed workflow caused by the missing `active_root` import after the multi-root path migration.
