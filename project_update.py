@@ -9,6 +9,7 @@ import verified_import
 import timeline_assets
 import silence_trim
 from i18n import _
+from project_paths import first_available_named_path
 
 _CREATOR=None
 _INTRO_SELECTOR=None
@@ -141,8 +142,10 @@ def build(query,keep):
   silence_requested=False
   silence_cfg=silence_trim.config()
   if not existing and silence_cfg['enabled'] and _SILENCE_SELECTOR is not None:
-     silence_choice=_SILENCE_SELECTOR(name)
-   if silence_choice is None:raise m.WorkflowBack()
+   silence_choice=_SILENCE_SELECTOR(name)
+   if silence_choice is None:
+    life.log('SILENCE_TRIM_BACK_REQUESTED',project=name)
+    raise m.WorkflowCancelled(_('Selection cancelled.'))
    silence_requested=bool(silence_choice)
    life.log('SILENCE_TRIM_USER_CHOICE',project=name,enabled=True,selected=silence_requested)
   elif not existing:
