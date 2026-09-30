@@ -14,6 +14,7 @@
 - Updated Settings to display the active named intro-path configuration without recreating the obsolete single-folder key.
 - Fixed the Settings Logging section to always use the literal `[Logging]` configuration section regardless of UI language.
 - Added `project_profiles.py` and `project_paths.py` to updater Python syntax verification.
+- Removed the legacy global Silence Trim Enabled switch; profile `SilenceTrim` is now the sole workflow enablement control while `[SilenceTrim]` keeps only analysis parameters.
 
 
 ## 1.35 - 30.09.2026
