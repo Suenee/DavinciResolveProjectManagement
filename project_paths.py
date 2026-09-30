@@ -30,3 +30,20 @@ def active_root(parser: configparser.ConfigParser) -> Path:
         raise RuntimeError('No project paths are configured in [Paths].')
     tried='; '.join(f'{key}={path}' for key,path in configured)
     raise RuntimeError(f'None of the configured project paths exists: {tried}')
+
+def named_paths(parser: configparser.ConfigParser, section: str) -> list[tuple[str, Path]]:
+    if not parser.has_section(section):
+        return []
+    out=[];seen=set()
+    for key,value in parser.items(section):
+        raw=value.strip()
+        if not raw: continue
+        path=Path(raw);norm=str(path).rstrip('\\/').casefold()
+        if norm in seen: continue
+        seen.add(norm);out.append((key,path))
+    return out
+
+def first_available_named_path(parser: configparser.ConfigParser, section: str) -> Path | None:
+    for _,path in named_paths(parser,section):
+        if path.is_dir(): return path
+    return None
