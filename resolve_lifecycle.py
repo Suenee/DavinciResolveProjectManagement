@@ -1,47 +1,22 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import configparser,json,os,subprocess,sys,time,threading
+import configparser,json,os,subprocess,sys,time
 from datetime import datetime
 from pathlib import Path
 APP_DIR=Path(__file__).resolve().parent; RUNTIME_DIR=APP_DIR/'runtime'; STATE_FILE=RUNTIME_DIR/'state.json'; CONFIG=APP_DIR/'config.ini'; LOG_DIR=APP_DIR/'logs'; APP_LOG=LOG_DIR/'DavinciResolveProjectManagement.log'
 DEFAULT_EXE=Path(os.environ.get('PROGRAMFILES',r'C:\Program Files'))/'Blackmagic Design'/'DaVinci Resolve'/'Resolve.exe'
-_DIAG_LOCK=threading.Lock(); _MEDIA_POOL_WATCH=None
-
 def config():
  p=configparser.ConfigParser(); p.read(CONFIG,encoding='utf-8'); return p
 def settings():
  p=config(); raw=p.get('DaVinciResolve','ResolveExe',fallback='').strip(); return Path(raw) if raw else DEFAULT_EXE,p.getint('DaVinciResolve','StartupTimeout',fallback=180),p.getint('DaVinciResolve','AliveTimeout',fallback=900)
 def log_mode():
  mode=config().get('Logging','Mode',fallback='single').strip().casefold(); return mode if mode in ('off','single','all') else 'single'
-def _write_log(event,**data):
+def log(event,**data):
  mode=log_mode()
  if mode=='off':return
  LOG_DIR.mkdir(parents=True,exist_ok=True); path=APP_LOG; line=datetime.now().strftime('%d.%m.%Y %H:%M:%S.%f')[:-3]+' '+event
  if data:line+=' '+json.dumps(data,ensure_ascii=False,default=str)
  with path.open('a',encoding='utf-8') as f:f.write(line+'\n')
-def _media_pool_watch_start(data):
- global _MEDIA_POOL_WATCH
- with _DIAG_LOCK:
-  if _MEDIA_POOL_WATCH is not None:_MEDIA_POOL_WATCH.set()
-  stop=threading.Event();_MEDIA_POOL_WATCH=stop
- started=time.monotonic();context=dict(data)
- def worker():
-  previous=0
-  for checkpoint in (1,2,5,10,20,30,60,120,300):
-   if stop.wait(checkpoint-previous):return
-   previous=checkpoint;_write_log('MEDIA_POOL_GET_WAIT',elapsed_seconds=round(time.monotonic()-started,3),**context)
-  while not stop.wait(300):_write_log('MEDIA_POOL_GET_WAIT',elapsed_seconds=round(time.monotonic()-started,3),**context)
- threading.Thread(target=worker,name='MediaPoolDiagnostic',daemon=True).start()
-def _media_pool_watch_stop(event,data):
- global _MEDIA_POOL_WATCH
- with _DIAG_LOCK:
-  stop=_MEDIA_POOL_WATCH;_MEDIA_POOL_WATCH=None
- if stop is not None:stop.set()
-def log(event,**data):
- _write_log(event,**data)
- # Diagnostic observer only. It never calls Resolve and never changes workflow control flow.
- if event=='MEDIA_POOL_GET':_media_pool_watch_start(data)
- elif event in ('MEDIA_POOL_OK','PROJECT_UPDATE_ERROR','WORKFLOW_CANCELLED'):_media_pool_watch_stop(event,data)
 def begin_log_session(command='',project=''):
  if log_mode()=='single':
   LOG_DIR.mkdir(parents=True,exist_ok=True); APP_LOG.write_text('',encoding='utf-8')
