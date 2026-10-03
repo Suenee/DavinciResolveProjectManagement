@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import re,traceback,time,threading
+import re,traceback
 import managed_builder as m
 import resolve_lifecycle as life
 import timeline_audio
@@ -19,36 +19,15 @@ _SILENCE_SELECTOR=None
 
 def set_timeline_creator(func):
  global _CREATOR;_CREATOR=func
+
 def set_intro_selector(func):
  global _INTRO_SELECTOR;_INTRO_SELECTOR=func
+
 def set_title_selector(func):
  global _TITLE_SELECTOR;_TITLE_SELECTOR=func
+
 def set_silence_selector(func):
  global _SILENCE_SELECTOR;_SILENCE_SELECTOR=func
-
-def _diagnosed_api_call(label,func,**context):
- """Log elapsed time independently while a native Resolve API call may block."""
- started=time.monotonic();done=threading.Event()
- life.log(label+'_CALL',**context)
- def heartbeat():
-  # Dense early samples make project-creation races visible; then back off.
-  checkpoints=(1,2,5,10,20,30,60,120,300)
-  previous=0
-  for checkpoint in checkpoints:
-   if done.wait(max(0,checkpoint-previous)):return
-   previous=checkpoint
-   life.log(label+'_WAIT',elapsed_seconds=round(time.monotonic()-started,3),**context)
-  while not done.wait(300):
-   life.log(label+'_WAIT',elapsed_seconds=round(time.monotonic()-started,3),**context)
- t=threading.Thread(target=heartbeat,name='ResolveApiDiagnostic-'+label,daemon=True);t.start()
- try:
-  result=func()
-  life.log(label+'_RETURN',elapsed_seconds=round(time.monotonic()-started,3),returned=result is not None,**context)
-  return result
- except Exception as exc:
-  life.log(label+'_ERROR',elapsed_seconds=round(time.monotonic()-started,3),error=repr(exc),**context)
-  raise
- finally:done.set()
 
 def _intro_root():
  p=m.configparser.ConfigParser(interpolation=None);p.optionxform=str;p.read(m.CONFIG,encoding='utf-8')
@@ -75,77 +54,128 @@ def _select_intro(project_name,intro_mode):
  return m.Path(chosen) if chosen else None
 
 def _timeline_names(project):
- try:return [t.GetName() for t in (project.GetTimelineByIndex(i) for i in range(1,(project.GetTimelineCount() or 0)+1)) if t]
- except:return []
-def _select_timeline(project,name):
- names=_timeline_names(project);life.log('TIMELINE_CANDIDATES',project=name,candidates=names)
- if name in names:
-  for i in range(1,(project.GetTimelineCount() or 0)+1):
-   t=project.GetTimelineByIndex(i)
-   if t and t.GetName()==name:return t
- return project.GetCurrentTimeline()
-def _stage(phase):
- m.PROGRESS.set_percent(phase,{'RESOLVE':8,'PROJECT_MANAGER':16,'PROJECT_CREATE':22,'MEDIA_POOL':24,'MEDIA_IMPORT':30,'TIMELINE':62,'AUDIO':76,'DELIVER':86,'SAVE':94,'DONE':100}.get(phase,0))
-def _project_folder(pm,folder):
- if not folder:return
- root=pm.GetRootFolder();pm.SetCurrentFolder(root)
- for part in re.split(r'[\\/]+',folder):
-  if not part:continue
-  found=None
-  for child in pm.GetFolderListInCurrentFolder() or []:
-   try:n=child.GetName()
-   except:n=str(child)
-   if n.casefold()==part.casefold():found=child;break
-  if found is None:
-   try:found=pm.AddSubFolder(pm.GetCurrentFolder(),part)
-   except:found=None
-  if found is None:raise RuntimeError(f'Nelze vytvořit/najít Resolve Project Library folder: {part}')
-  pm.SetCurrentFolder(found)
-def build(query):
- phase='INIT';name=str(query)
+ out=[]
+ for i in range(1,int(project.GetTimelineCount() or 0)+1):
+  t=project.GetTimelineByIndex(i)
+  if t is not None:out.append(t)
+ return out
+
+def _matching_timelines(project,base):
+ pat=re.compile(r'^'+re.escape(base)+r'(?: \((\d+)\))?$',re.I)
+ return [t for t in _timeline_names(project) if pat.match((t.GetName() or '').strip())]
+
+def _unique_timeline_name(project,base):
+ used={(t.GetName() or '').casefold() for t in _timeline_names(project)}
+ if base.casefold() not in used:return base
+ n=2
+ while f'{base} ({n})'.casefold() in used:n+=1
+ return f'{base} ({n})'
+
+def _deliver_ready(project,src,folder):
+ expected=m.norm(src/folder)
  try:
-  root,folder,timeout,alive,deliver_preset,deliver_folder=m.cfg();src=m.resolve_project(root,query);name=src.name;life.begin_log_session('run',name);life.log('PROJECT_RESOLVED',query=query,name=name)
-  profile=project_profiles.resolve(name)
-  while True:
-   selected_title=timeline_assets.choose_title(name,_TITLE_SELECTOR) if profile.title_image else None
-   if selected_title is False:return
-   try:selected_intro=_select_intro(name,profile.intro)
-   except m.WorkflowBack:continue
-   break
-  selected_credits=timeline_assets.find_credits() if profile.end_credits else None;asset_cfg=timeline_assets.config()
-  phase='RESOLVE';_stage(phase);r=m.ensure(name,timeout)
-  phase='PROJECT_MANAGER';_stage(phase);pm=r.GetProjectManager();_project_folder(pm,folder)
-  existing=False;pr=None
-  projects=pm.GetProjectListInCurrentFolder() or []
-  existing_name=next((x for x in projects if x.casefold()==name.casefold()),None)
-  if existing_name:pr=pm.LoadProject(existing_name);existing=pr is not None
-  life.log('PROJECT_EXISTENCE',name=name,existing=existing)
+  if not hasattr(project,'GetRenderSettings'):return False
+  settings=project.GetRenderSettings() or {};target=settings.get('TargetDir') or settings.get('targetDir') or ''
+  return bool(target) and m.norm(target)==expected
+ except Exception:return False
+
+def _status(project,base,missing,src,deliver_folder,shoot):
+ timelines=_matching_timelines(project,base);return {'missing':len(missing),'timeline':bool(timelines),'voice':any(timeline_audio.is_prepared(t) for t in timelines),'deliver':_deliver_ready(project,src,deliver_folder)}
+def ask(project_name,status):raise RuntimeError('Update dialog was not initialized.')
+def _stage(name):
+ life.put(stage=name);life.log('WORKFLOW_STAGE',stage=name)
+ labels={'RESOLVE_CONNECT':_('Connecting to DaVinci Resolve…'),'PROJECT_OPEN':_('Opening Project Library…'),'PROJECT_CREATE':_('Creating project…'),'MEDIA_POOL':_('Preparing Media Pool…'),'MEDIA_IMPORT':_('Importing media…'),'MEDIA_VERIFY':_('Verifying media…'),'SILENCE_ANALYSIS':_('Analyzing clip edges…'),'TIMELINE':_('Creating timeline…'),'VOICE_ISOLATION':_('Setting Voice Isolation…'),'INTRO_MATCH':_('Processing intro…'),'DELIVERY':_('Setting DELIVERY…'),'SAVE':_('Saving project…'),'FINAL_UI':_('Preparing EDIT page…'),'COMPLETE':_('Done')}
+ pct={'RESOLVE_CONNECT':5,'PROJECT_OPEN':12,'PROJECT_CREATE':18,'MEDIA_POOL':24,'MEDIA_IMPORT':30,'MEDIA_VERIFY':72,'SILENCE_ANALYSIS':75,'TIMELINE':78,'VOICE_ISOLATION':84,'INTRO_MATCH':87,'DELIVERY':90,'SAVE':94,'FINAL_UI':97,'COMPLETE':100}
+ m.PROGRESS.stage(labels.get(name,name),pct.get(name))
+def _timecode_to_frames(tc,fps):
+ fps_i=max(1,int(round(float(fps))))
+ try:h,mi,se,fr=[int(x) for x in tc.replace(';',':').split(':')];return ((h*3600+mi*60+se)*fps_i)+fr
+ except Exception:return 0
+def _frames_to_timecode(frame,fps):
+ fps_i=max(1,int(round(float(fps))));frame=max(0,int(frame));hours=frame//(fps_i*3600);frame%=fps_i*3600;minutes=frame//(fps_i*60);frame%=fps_i*60;seconds=frame//fps_i;frames=frame%fps_i
+ return f'{hours:02d}:{minutes:02d}:{seconds:02d}:{frames:02d}'
+def _finish_resolve_ui(resolve,project,timeline,shooting_frame=None,fps=25):
+ _stage('FINAL_UI')
+ if timeline is None:timeline=project.GetCurrentTimeline()
+ current_ok=bool(project.SetCurrentTimeline(timeline)) if timeline is not None else False
+ page_ok=bool(resolve.OpenPage('edit'))
+ if shooting_frame is not None:
+  start_frame=int(timeline.GetStartFrame() or 0);base_tc=timeline.GetStartTimecode() or '00:00:00:00';target_tc=_frames_to_timecode(_timecode_to_frames(base_tc,fps)+(shooting_frame-start_frame),fps)
+ else:target_tc=timeline.GetStartTimecode() if timeline is not None else None
+ playhead_ok=bool(timeline.SetCurrentTimecode(target_tc)) if timeline is not None and target_tc else False
+ m.PROGRESS.ensure_visible('FINAL_UI_AFTER_RESOLVE')
+ life.log('FINAL_UI_RESULT',current_timeline=current_ok,edit_page=page_ok,shooting_frame=shooting_frame,target_timecode=target_tc,playhead_shooting_start=playhead_ok)
+ return current_ok and page_ok and playhead_ok
+def _create_timeline(mp,master,shoot,name,voice,intro_reference=None,intro_first=None,title_path=None,credits_path=None,title_seconds=20,credits_seconds=25,fps=25,trim_ranges=None):
+ if _CREATOR is None:raise RuntimeError('Timeline creator není inicializován.')
+ _stage('TIMELINE');created=_CREATOR(mp,master,shoot,name,intro_first,title_path,credits_path,title_seconds,credits_seconds,fps,trim_ranges)
+ if isinstance(created,tuple):timeline,shooting_frame=created
+ else:timeline,shooting_frame=created,None
+ if voice:_stage('VOICE_ISOLATION');timeline=timeline_audio.configure(timeline)
+ if voice and intro_reference:_stage('INTRO_MATCH');timeline=intro_match_routing.apply(mp,timeline,intro_reference)
+ return timeline,shooting_frame
+
+def _verify_media(mp,master,dirs,fs):
+ _stage('MEDIA_VERIFY');retried,remaining=verified_import.verify_and_retry(mp,master,dirs,fs)
+ if remaining:
+  preview='\n'.join(remaining[:10]);more=f'\n... +{len(remaining)-10} dalších' if len(remaining)>10 else ''
+  raise RuntimeError(f'DaVinci Resolve nepřijal {len(remaining)} mediálních souborů ani po opakovaném importu:\n{preview}{more}')
+ if retried:print(f'[OK] Opakovaným importem doplněno médií: {retried}')
+
+def build(query,keep):
+ phase='INIT'
+ root,folder,timeout,alive,deliver_preset,deliver_folder=m.cfg();src=m.resolve_project(root,query);name=src.name;life.begin_log_session('run',name);life.log('PROJECT_RESOLVED',query=query,name=name)
+ profile=project_profiles.resolve(name)
+ while True:
+  selected_title=timeline_assets.choose_title(name,_TITLE_SELECTOR) if profile.title_image else None
+  if selected_title is False:return
+  try:selected_intro=_select_intro(name,profile.intro)
+  except m.WorkflowBack:continue
+  break
+ selected_credits=timeline_assets.find_credits() if profile.end_credits else None;asset_cfg=timeline_assets.config()
+ m.PROGRESS.start(_('Preparing project {name}').format(name=name))
+ shoot=next((x for x in src.iterdir() if x.is_dir() and x.name.casefold()=='shooting'),src/'SHOOTING')
+ if not shoot.is_dir():raise RuntimeError(f'Chybí SHOOTING: {shoot}')
+ dirs=[shoot]+[d for dn in m.OPTIONAL for d in src.iterdir() if d.is_dir() and d.name.casefold()==dn.casefold()];fs={m.norm(p):p for d in dirs for p in m.allfiles(d)}
+ try:
+  phase='RESOLVE_CONNECT';_stage(phase);r=m.ensure(name,timeout);life.put(busy=True,project=name,keep_mode=keep,alive_timeout=alive)
+  phase='PROJECT_OPEN';_stage(phase);pm=r.GetProjectManager();pm.GotoRootFolder()
+  if folder and not pm.OpenFolder(folder):raise RuntimeError(f'Project Library folder nenalezen: {folder}')
+  projects=pm.GetProjectListInCurrentFolder() or [];existing=next((x for x in projects if x.casefold()==name.casefold()),None)
   silence_requested=False
   if not existing and profile.silence_trim=='1':
-   silence_requested=True;life.log('SILENCE_TRIM_PROFILE_CHOICE',project=name,mode='1',selected=True)
+   silence_requested=True
+   life.log('SILENCE_TRIM_PROFILE_CHOICE',project=name,mode='1',selected=True)
   elif not existing and profile.silence_trim=='ask' and _SILENCE_SELECTOR is not None:
    silence_choice=_SILENCE_SELECTOR(name)
-   if silence_choice is None:life.log('SILENCE_TRIM_BACK_REQUESTED',project=name);raise m.WorkflowCancelled(_('Selection cancelled.'))
-   silence_requested=bool(silence_choice);life.log('SILENCE_TRIM_PROFILE_CHOICE',project=name,mode='ask',selected=silence_requested)
-  elif not existing:life.log('SILENCE_TRIM_PROFILE_CHOICE',project=name,mode=profile.silence_trim,selected=False)
+   if silence_choice is None:
+    life.log('SILENCE_TRIM_BACK_REQUESTED',project=name)
+    raise m.WorkflowCancelled(_('Selection cancelled.'))
+   silence_requested=bool(silence_choice)
+   life.log('SILENCE_TRIM_PROFILE_CHOICE',project=name,mode='ask',selected=silence_requested)
+  elif not existing:
+   life.log('SILENCE_TRIM_PROFILE_CHOICE',project=name,mode=profile.silence_trim,selected=False)
   if not existing:
-   phase='PROJECT_CREATE';_stage(phase);life.log('PROJECT_CREATE_CALL',name=name);pr=pm.CreateProject(name);life.log('PROJECT_CREATE_RETURN',name=name,returned=pr is not None)
+   phase='PROJECT_CREATE';_stage(phase)
+   life.log('PROJECT_CREATE_CALL',name=name)
+   pr=pm.CreateProject(name)
+   life.log('PROJECT_CREATE_RETURN',name=name,returned=pr is not None)
    if pr is None:
-    life.log('PROJECT_CREATE_RELOAD_BEGIN',name=name);projects=pm.GetProjectListInCurrentFolder() or [];created_name=next((x for x in projects if x.casefold()==name.casefold()),None)
+    # Some Resolve builds may create the project but fail to return a usable object.
+    # Re-query the current library before declaring creation failed.
+    life.log('PROJECT_CREATE_RELOAD_BEGIN',name=name)
+    projects=pm.GetProjectListInCurrentFolder() or []
+    created_name=next((x for x in projects if x.casefold()==name.casefold()),None)
     if created_name:pr=pm.LoadProject(created_name)
     life.log('PROJECT_CREATE_RELOAD_END',name=name,found=bool(created_name),loaded=pr is not None)
    if pr is None:raise RuntimeError(f'Nelze vytvořit ani znovu načíst projekt: {name}')
    life.log('PROJECT_OBJECT_OK',name=name)
-   phase='MEDIA_POOL';_stage(phase)
-   # Diagnostic only: do not change workflow or impose a timeout yet.
-   try:current=pm.GetCurrentProject();current_name=current.GetName() if current is not None else None
-   except Exception as exc:current=None;current_name=None;life.log('PROJECT_CURRENT_DIAGNOSTIC_ERROR',name=name,error=repr(exc))
-   life.log('PROJECT_CURRENT_DIAGNOSTIC',expected=name,current=current_name,same_object=current is pr if current is not None else None)
-   mp=_diagnosed_api_call('MEDIA_POOL_GET',pr.GetMediaPool,name=name,current_project=current_name)
+   phase='MEDIA_POOL';_stage(phase);life.log('MEDIA_POOL_GET',name=name);mp=pr.GetMediaPool()
    if mp is None:raise RuntimeError(f'Projekt nemá dostupný Media Pool: {name}')
    life.log('MEDIA_POOL_OK',name=name);life.log('ROOT_FOLDER_GET',name=name);master=mp.GetRootFolder()
    if master is None:raise RuntimeError(f'Projekt nemá dostupný kořen Media Poolu: {name}')
    life.log('ROOT_FOLDER_OK',name=name)
+   # These standard bins are part of every newly initialized project even when empty.
    images_bin=m.getbin(mp,master,'IMAGES');intro_bin=m.getbin(mp,master,'INTRO')
    timeline_title=None;timeline_credits=None
    for kind,path in (('title',selected_title),('credits',selected_credits)):
@@ -158,26 +188,63 @@ def build(query):
     else:life.log('IMAGE_ASSET_SKIPPED',kind=kind,reason='resolve_rejected',file=str(path))
    timeline_intro=None
    if selected_intro:
-    if selected_intro.is_file():
-     life.log('INTRO_IMPORT_CALL',bin='INTRO',file=str(selected_intro));mp.SetCurrentFolder(intro_bin);intro_result=mp.ImportMedia([str(selected_intro)]);life.log('INTRO_IMPORT_RETURN',file=str(selected_intro),accepted=len(intro_result) if intro_result else 0)
+    if not selected_intro.is_file():
+     life.log('INTRO_SKIPPED',reason='file_missing',file=str(selected_intro))
+    else:
+     life.log('INTRO_IMPORT_CALL',bin='INTRO',file=str(selected_intro));mp.SetCurrentFolder(intro_bin);intro_result=mp.ImportMedia([str(selected_intro)]);life.log('INTRO_IMPORT_RETURN',bin='INTRO',file=str(selected_intro),accepted=len(intro_result) if intro_result else 0)
      if intro_result:timeline_intro=selected_intro
-    else:life.log('INTRO_ASSET_SKIPPED',reason='file_missing',file=str(selected_intro))
-   phase='MEDIA_IMPORT';_stage(phase);shoot=src/'SHOOTING';m.sync_source(mp,master,shoot)
-   phase='TIMELINE';_stage(phase)
-   trim_ranges=None
+     else:life.log('INTRO_SKIPPED',reason='resolve_rejected',file=str(selected_intro))
+   missing=set(fs);counter=[0]
+   phase='MEDIA_IMPORT';_stage(phase);life.log('MEDIA_SYNC_BEGIN',expected=len(fs),directories=[str(d) for d in dirs]);imported=sum(m.sync(mp,master,d,missing,counter,len(missing)) for d in dirs);life.log('MEDIA_SYNC_END',expected=len(fs),accepted=imported)
+   phase='MEDIA_VERIFY';_verify_media(mp,master,dirs,fs)
+   fps_raw=pr.GetSetting('timelineFrameRate') or pr.GetSetting('timelinePlaybackFrameRate') or '25'
+   try:fps=float(str(fps_raw).replace(',','.'))
+   except ValueError:fps=25.0
+   tn=m.nodate(name) or name
    if silence_requested:
-    trim_ranges=silence_trim.analyze_shooting(shoot);life.log('SILENCE_TRIM_ANALYSIS_COMPLETE',project=name,clips=len(trim_ranges))
-   if _CREATOR:timeline=_CREATOR(mp,master,shoot,name,timeline_intro,timeline_title,timeline_credits,asset_cfg['title_seconds'],asset_cfg['credits_seconds'],trim_ranges)
-   else:timeline=m.create_initial_timeline(mp,master,shoot,name,timeline_intro,timeline_title,timeline_credits,asset_cfg['title_seconds'],asset_cfg['credits_seconds'],25,trim_ranges)
-   if timeline is None:raise RuntimeError(f'Nelze vytvořit timeline: {name}')
-   project_timeline=timeline
+    phase='SILENCE_ANALYSIS';_stage(phase)
+    ordered=m.shooting_order(shoot)
+    def silence_progress(path,current,total):
+     m.PROGRESS.bar(_('Analyzing silence: {file}').format(file=path.name),current,total)
+    trim_ranges=silence_trim.analyze_files(ordered,silence_progress);m.PROGRESS.bar_done()
+    raw_name=tn+' RAW';edit_name=tn+' EDIT'
+    raw_timeline,raw_frame=_create_timeline(mp,master,shoot,raw_name,True,intro_first=timeline_intro,title_path=timeline_title,credits_path=timeline_credits,title_seconds=asset_cfg['title_seconds'],credits_seconds=asset_cfg['credits_seconds'],fps=fps)
+    created_timeline,shooting_frame=_create_timeline(mp,master,shoot,edit_name,True,intro_first=timeline_intro,title_path=timeline_title,credits_path=timeline_credits,title_seconds=asset_cfg['title_seconds'],credits_seconds=asset_cfg['credits_seconds'],fps=fps,trim_ranges=trim_ranges)
+    life.log('SILENCE_TRIM_TIMELINES_CREATED',raw=raw_name,edit=edit_name,clips=len(trim_ranges))
+   else:
+    phase='TIMELINE';created_timeline,shooting_frame=_create_timeline(mp,master,shoot,tn,True,intro_first=timeline_intro,title_path=timeline_title,credits_path=timeline_credits,title_seconds=asset_cfg['title_seconds'],credits_seconds=asset_cfg['credits_seconds'],fps=fps)
+   phase='DELIVERY';_stage(phase);m.apply_deliver(pr,src,deliver_preset,deliver_folder)
+   phase='SAVE';_stage(phase)
+   if not pm.SaveProject():raise RuntimeError('SaveProject() selhal.')
+   _finish_resolve_ui(r,pr,created_timeline,shooting_frame,fps)
+   result_tn=tn+' EDIT' if silence_requested else tn;life.log('PROJECT_CREATED',name=name,imported=imported,timeline=result_tn,silence_trim=silence_requested);print(f'[OK] Projekt vytvořen: {name} | Timeline: {result_tn} | Média: {imported}')
   else:
-   project_timeline=_select_timeline(pr,name)
-   if project_timeline is None:raise RuntimeError(f'Projekt nemá timeline: {name}')
-  phase='AUDIO';_stage(phase);timeline_audio.ensure_audio_layout(pr,project_timeline)
-  phase='DELIVER';_stage(phase);m.apply_deliver(pr,src,deliver_preset,deliver_folder)
-  phase='SAVE';_stage(phase);pm.SaveProject();phase='DONE';_stage(phase);life.log('PROJECT_UPDATE_DONE',name=name)
-  return pr
- except m.WorkflowBack:life.log('WORKFLOW_BACK_AT_NONWIZARD_STAGE',phase=phase);return
- except m.WorkflowCancelled:life.log('WORKFLOW_CANCELLED',phase=phase);raise
- except Exception as e:life.log('PROJECT_UPDATE_ERROR',phase=phase,error=repr(e),traceback=traceback.format_exc());raise
+   phase='PROJECT_LOAD';_stage(phase);pr=pm.LoadProject(existing)
+   if pr is None:raise RuntimeError(f'Existující projekt nelze otevřít: {existing}')
+   mp=pr.GetMediaPool();master=mp.GetRootFolder();have=set();m.present(master,have);missing=set(fs)-have;base=m.nodate(name) or name;st=_status(pr,base,missing,src,deliver_folder,shoot);incomplete=bool(missing) or not st['timeline'] or not st['voice'] or not st['deliver'];life.log('PROJECT_EXISTS',name=existing,incomplete=incomplete,expected_media=len(fs),present_media=len(have),**st)
+   actions=ask(existing,st)
+   if actions is None:print('[OK] Aktualizace projektu zrušena.');return m.finish(r,keep,alive)
+   changed=False
+   if actions['repository']:
+    if missing:
+     phase='MEDIA_IMPORT';_stage(phase);counter=[0];imported=sum(m.sync(mp,master,d,missing,counter,len(missing)) for d in dirs if any(m.norm(p) in missing for p in m.allfiles(d)));_verify_media(mp,master,dirs,fs);life.log('SYNC_DONE',imported=imported);print(f'[OK] Doplněno médií: {imported}');changed=True
+    else:print('[OK] Repozitář je aktuální.')
+   if actions['timeline']:
+    tn=_unique_timeline_name(pr,base);phase='TIMELINE';created_timeline,shooting_frame=_create_timeline(mp,master,shoot,tn,actions['voice'],actions.get('intro_reference'));life.log('TIMELINE_UPDATE_CREATED',timeline=tn,voice=actions['voice'],intro_reference=actions.get('intro_reference'));print(f'[OK] Vytvořena timeline: {tn}');changed=True
+   if actions['deliver']:
+    phase='DELIVERY';_stage(phase);m.apply_deliver(pr,src,deliver_preset,deliver_folder);changed=True
+   if changed:
+    phase='SAVE';_stage(phase)
+    if not pm.SaveProject():raise RuntimeError('SaveProject() selhal.')
+    _finish_resolve_ui(r,pr,locals().get('created_timeline') or pr.GetCurrentTimeline(),locals().get('shooting_frame'),float(pr.GetSetting('timelineFrameRate') or 25))
+   else:print('[OK] Nebyla vybrána žádná změna.')
+  phase='COMPLETE';_stage(phase)
+ except m.WorkflowBack:
+  life.log('WORKFLOW_BACK_AT_NONWIZARD_STAGE',phase=phase);return
+ except m.WorkflowCancelled:
+  life.log('WORKFLOW_CANCELLED',phase=phase);return
+ except Exception as exc:
+  life.log('WORKFLOW_ERROR',phase=phase,error=repr(exc),traceback=traceback.format_exc());raise
+ finally:
+  life.put(busy=False,stage=_('Done'));m.PROGRESS.stop(_('Done'),success=not m.PROGRESS.cancel_requested)
+ if 'r' in locals():m.finish(r,keep,alive)
