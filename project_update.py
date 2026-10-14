@@ -170,7 +170,33 @@ def build(query,keep):
     life.log('PROJECT_CREATE_RELOAD_END',name=name,found=bool(created_name),loaded=pr is not None)
    if pr is None:raise RuntimeError(f'Nelze vytvořit ani znovu načíst projekt: {name}')
    life.log('PROJECT_OBJECT_OK',name=name)
-   phase='MEDIA_POOL';_stage(phase);life.log('MEDIA_POOL_GET',name=name);mp=pr.GetMediaPool()
+   phase='MEDIA_POOL';_stage(phase)
+   # Resolve may still be opening a newly created project after CreateProject returns.
+   # Keep the original project object and workflow; instrument only this boundary.
+   import threading,time
+   life.log('MEDIA_POOL_STABILIZE_BEGIN',name=name,seconds=2)
+   deadline=time.monotonic()+2
+   while time.monotonic()<deadline:
+    m.PROGRESS.check_cancel()
+    time.sleep(min(0.1,max(0,deadline-time.monotonic())))
+   life.log('MEDIA_POOL_STABILIZE_END',name=name)
+   completed=threading.Event()
+   started=time.monotonic()
+   def _media_pool_watch():
+    previous=0
+    for checkpoint in (1,2,5,10,20,30,60,120,300):
+     if completed.wait(checkpoint-previous):return
+     previous=checkpoint
+     life.log('MEDIA_POOL_GET_WAIT',name=name,elapsed_seconds=round(time.monotonic()-started,2))
+    while not completed.wait(300):
+     life.log('MEDIA_POOL_GET_WAIT',name=name,elapsed_seconds=round(time.monotonic()-started,2))
+   life.log('MEDIA_POOL_GET',name=name)
+   threading.Thread(target=_media_pool_watch,name='DRPM-MediaPool-Watch',daemon=True).start()
+   try:
+    mp=pr.GetMediaPool()
+    life.log('MEDIA_POOL_GET_RETURN',name=name,elapsed_seconds=round(time.monotonic()-started,2),returned=mp is not None)
+   finally:
+    completed.set()
    if mp is None:raise RuntimeError(f'Projekt nemá dostupný Media Pool: {name}')
    life.log('MEDIA_POOL_OK',name=name);life.log('ROOT_FOLDER_GET',name=name);master=mp.GetRootFolder()
    if master is None:raise RuntimeError(f'Projekt nemá dostupný kořen Media Poolu: {name}')
