@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.39 - 14.10.2026
+
+- Replaced the in-process Media Pool heartbeat with a standalone Python watchdog process, independent of a blocked Resolve API call and Python GIL.
+- Record independent checkpoints and parent-process health in `logs/media_pool_watchdog.log` and the application log; the watchdog stops on completion or parent exit and has a ten-minute safety limit.
+- Preserve existing project creation and Media Pool behavior while diagnosing the hang; no forced Resolve termination or API timeout is introduced.
+- Display the authoritative `VERSION` value in project browser, Settings, New Project and Progress window titles instead of the stale 1.26 label.
+
+
 ## 1.38 - 14.10.2026
 
 - Added a cancellable two-second stabilization interval after creating a Resolve project and before accessing its Media Pool.
