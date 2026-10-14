@@ -1,14 +1,14 @@
 $ErrorActionPreference = 'Stop'
 $Repo = $env:DRPM_REPO
 $TargetBranch = if ($env:DRPM_BRANCH) { $env:DRPM_BRANCH } else { 'main' }
-$RunnerRevision = '1.22-dependency-discovery'
+$RunnerRevision = '1.42-safe-network-fast-forward'
 $TargetVersion = 'unknown'
 $CurrentVersion = 'unknown'
 if (-not $Repo) { $Repo = Split-Path -Parent $MyInvocation.MyCommand.Path }
 $Repo = [System.IO.Path]::GetFullPath($Repo).TrimEnd('\')
 $LogDir = Join-Path $Repo 'logs'
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
-$Log = Join-Path $LogDir 'upgrade.log'
+$Log = Join-Path $Repo 'upgrade.log'
 $Phase = 'SELF-UPDATE'
 $Warnings = 0
 $FinalStatus = $null
@@ -88,33 +88,36 @@ try {
 
     Set-Phase 'SELF-UPDATE'
     if ($env:DRPM_FRESH_BOOTSTRAP -eq '1') {
-        Info 'Fresh bootstrap confirmed by launcher; local-change guard is not applicable before the first authoritative reset.'
+        Info 'Fresh bootstrap: no existing tracked local state to protect.'
     } else {
-        # Windows/network checkouts may report tracked CMD/PS1 files as dirty only
-        # because the worktree has CRLF while Git compares normalized LF content.
-        # Ignore end-of-line whitespace for the safety decision, but keep blocking
-        # any substantive local source modification.
+        # Preserve every staged and unstaged tracked change, including updater files.
+        # Do not discard local edits or commits to force a remote checkout.
         $unstaged=Run-Native 'git.exe' @('diff','--ignore-space-at-eol','--quiet') -AllowFailure
         if ($unstaged -ne 0) {
             $names=@(& git.exe diff --ignore-space-at-eol --name-only)
-            $nonBootstrap=@($names | Where-Object { $_ -and $_ -notin @('upgrade.cmd','upgrade.ps1','.gitattributes') })
-            if ($nonBootstrap.Count -gt 0) { Fail "Local tracked source files contain substantive changes: $($nonBootstrap -join ', ')" }
-            Warn 'Only bootstrap files differ locally; remote tracked state will be authoritative.'
-        } else {
-            $rawUnstaged=Run-Native 'git.exe' @('diff','--quiet') -AllowFailure
-            if ($rawUnstaged -ne 0) { Info 'Ignoring worktree differences caused only by end-of-line normalization.' }
+            Fail "Local tracked changes require attention before upgrade: $($names -join ', ')"
         }
         $staged=Run-Native 'git.exe' @('diff','--cached','--quiet') -AllowFailure
-        if ($staged -ne 0) { Fail 'Local staged source changes exist. Commit/revert them before upgrade.' }
+        if ($staged -ne 0) { Fail 'Local staged changes exist. Commit or revert them before upgrade.' }
+        $rawUnstaged=Run-Native 'git.exe' @('diff','--quiet') -AllowFailure
+        if ($rawUnstaged -ne 0) { Info 'Only end-of-line differences detected; Git will retain tracked working-tree safety checks.' }
     }
 
     Invoke-Git @('fetch','origin',$TargetBranch) | Out-Null
     $currentBranch=(& git.exe branch --show-current).Trim()
     if ($currentBranch -ne $TargetBranch) {
-        $checkout=Run-Native 'git.exe' @('checkout',$TargetBranch) -AllowFailure
-        if ($checkout -ne 0) { Invoke-Git @('checkout','-B',$TargetBranch,"origin/$TargetBranch") | Out-Null }
+        Fail "Current branch '$currentBranch' differs from required '$TargetBranch'. Switch branches manually to avoid discarding local work."
     }
-    Invoke-Git @('reset','--hard',"origin/$TargetBranch") | Out-Null
+    $headBefore=(& git.exe rev-parse HEAD).Trim()
+    $remote=(& git.exe rev-parse "origin/$TargetBranch").Trim()
+    if ($headBefore -ne $remote) {
+        # Fast-forward only: local-only commits and diverged history must survive.
+        $ancestor=Run-Native 'git.exe' @('merge-base','--is-ancestor',$headBefore,$remote) -AllowFailure
+        if ($ancestor -ne 0) {
+            Fail 'Local branch has commits not contained in origin/main (or histories diverged). Push/reconcile them before upgrade; no reset performed.'
+        }
+        Invoke-Git @('merge','--ff-only',"origin/$TargetBranch") | Out-Null
+    }
     $head=(& git.exe rev-parse HEAD).Trim();$remote=(& git.exe rev-parse "origin/$TargetBranch").Trim()
     if ($head -ne $remote) { Fail "Repository verification failed: HEAD != origin/$TargetBranch" }
     Ok "Repository synchronized: $head"
@@ -179,7 +182,7 @@ try {
 
     Set-Phase 'VERIFY'
     $sources=@('resolve_project_builder.py','managed_builder.py','managed_builder_runner.py','project_browser.py','project_update.py','project_update_dialog.py','ui_windows.py','timeline_audio.py','intro_fingerprint.py','intro_match_routing.py','intro_detection.py','resolve_lifecycle.py','resolve_gui.py','config_migrate.py','dependency_manager.py','verified_import.py','timeline_assets.py','silence_trim.py','project_paths.py','project_profiles.py','i18n.py')
-    $existing=@(); foreach($s in $sources){$p=Join-Path $Repo $s;if(Test-Path $p){$existing+=$p}else{Warn "Optional/expected source missing: $s"}}
+    $existing=@(); foreach($s in $sources){$p=Join-Path $Repo $s;if(Test-Path $p){$existing+=$p}else{Fail "Required source missing: $s"}}
     Run-Native $python (@('-m','py_compile')+$existing) | Out-Null
     $smoke="import sys;sys.path.insert(0,r'$Repo');import i18n;assert i18n.resolve_language('en')=='en';assert i18n.resolve_language('cs')=='cs';import managed_builder,project_update,project_browser"
     Run-Native $python @('-c',$smoke) | Out-Null
