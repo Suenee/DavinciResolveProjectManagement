@@ -49,9 +49,22 @@ if errorlevel 1 (
   exit /b 1
 )
 
+rem Trust only this exact checkout in the user's Git configuration, so manual
+rem Git commands also work on network shares. Do not use safe.directory=*.
+set "DRPM_GIT_DIR=%CD%"
+rem Persist the exception once; do not accumulate duplicate global entries.
+git config --global --get-all safe.directory 2>nul | findstr /L /X /C:"%DRPM_GIT_DIR%" >nul
+if errorlevel 1 (
+  git config --global --add safe.directory "%DRPM_GIT_DIR%"
+  if errorlevel 1 (
+    echo ERROR: Cannot persist Git safe.directory for %DRPM_GIT_DIR%.
+    popd
+    exit /b 1
+  )
+)
 set "GIT_CONFIG_COUNT=1"
 set "GIT_CONFIG_KEY_0=safe.directory"
-set "GIT_CONFIG_VALUE_0=%CD%"
+set "GIT_CONFIG_VALUE_0=%DRPM_GIT_DIR%"
 
 if not exist ".git\" (
   set "DRPM_FRESH_BOOTSTRAP=1"
