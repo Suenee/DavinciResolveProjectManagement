@@ -8,6 +8,14 @@
 
 # Changelog
 
+## 1.41 - 14.10.2026
+
+- Use `assets/DRPM.png` as the Tk application icon for the project browser, settings, project creation, and progress windows.
+- Resolve the icon relative to the repository, including mapped and network drive checkouts.
+- Gracefully retain the system default icon when the PNG has not yet been added to the repository.
+- The binary PNG asset must be committed separately from the user's local checkout; no substitute artwork is included.
+
+
 ## 1.39 - 14.10.2026
 
 - Replaced the in-process Media Pool heartbeat with a standalone Python watchdog process, independent of a blocked Resolve API call and Python GIL.
