@@ -8,6 +8,14 @@
 
 # Changelog
 
+## 1.42 - 14.10.2026
+
+- Persist a repository-specific Git safe.directory exception for mapped/UNC network checkouts so manual Git commands work after the updater exits.
+- Replace routine hard resets with verified fast-forward-only synchronization; refuse to discard local commits or tracked modifications.
+- Move upgrade diagnostics to root `upgrade.log` as required by `UPGRADE.md` and fail verification when required Python sources are missing.
+- Document the network ownership failure, canonical-path remedy, and local-work preservation rules.
+
+
 ## 1.41 - 14.10.2026
 
 - Use `assets/DRPM.png` as the Tk application icon for the project browser, settings, project creation, and progress windows.
