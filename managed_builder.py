@@ -250,7 +250,20 @@ def create_initial_timeline(mp,master,shoot,timeline_name,intro_path=None,title_
   item=image_map.get(norm(title_path))
   if item and not _append_still(mp,timeline,item,title_seconds,fps,'title'):life.log('TIMELINE_TITLE_SKIPPED',reason='append_failed',file=str(title_path))
  if intro_clip:
-  life.log('TIMELINE_INTRO_APPEND_CALL',file=str(intro_path));r=mp.AppendToTimeline([intro_clip]);life.log('TIMELINE_INTRO_APPEND_RETURN',success=bool(r))
+  # Keep intro music on A2, separate from the SHOOTING voice-isolated A1.
+  if int(timeline.GetTrackCount('audio') or 0)<2:
+   subtype='stereo'
+   try:subtype=timeline.GetTrackSubType('audio',1) or 'stereo'
+   except Exception:pass
+   if not timeline.AddTrack('audio',subtype):raise RuntimeError('Cannot create intro audio track A2.')
+  life.log('TIMELINE_INTRO_VIDEO_CALL',file=str(intro_path))
+  video=mp.AppendToTimeline([{'mediaPoolItem':intro_clip,'mediaType':1,'trackIndex':1}])
+  if not video:raise RuntimeError('Cannot append intro video to V1.')
+  intro_start=int(video[0].GetStart())
+  life.log('TIMELINE_INTRO_AUDIO_CALL',file=str(intro_path),track=2,record_frame=intro_start)
+  audio=mp.AppendToTimeline([{'mediaPoolItem':intro_clip,'mediaType':2,'trackIndex':2,'recordFrame':intro_start}])
+  if not audio:raise RuntimeError('Cannot append intro audio to A2.')
+  life.log('TIMELINE_INTRO_SPLIT_OK',file=str(intro_path),video_track=1,audio_track=2,start_frame=intro_start)
  shooting=[clip_map[norm(p)] for p in ordered_files if norm(p) in clip_map]
  first_shooting_frame=None
  if shooting:
@@ -289,7 +302,19 @@ def apply_deliver(project,src,preset,folder):
  target_text=str(target)
  life.log('DELIVERY_TARGET',source_project=str(src),target=target_text)
  if not project.LoadRenderPreset(preset):raise RuntimeError(f'Nelze načíst render preset: {preset}')
- if not project.SetRenderSettings({'TargetDir':target_text}):raise RuntimeError(f'Nelze nastavit Deliver TargetDir: {target_text}')
+ requested={'TargetDir':target_text,'CustomName':src.name}
+ life.log('DELIVERY_SETTINGS_REQUESTED',**requested)
+ if not project.SetRenderSettings(requested):raise RuntimeError(f'Cannot apply Deliver settings: {requested}')
+ life.log('DELIVERY_SETTINGS_APPLIED',**requested)
+ if hasattr(project,'GetRenderSettings'):
+  try:
+   actual=project.GetRenderSettings() or {}
+   life.log('DELIVERY_SETTINGS_READBACK',target_dir=actual.get('TargetDir'),custom_name=actual.get('CustomName'))
+   for key,wanted in requested.items():
+    got=actual.get(key)
+    if got is not None and str(got).strip() and str(got).strip().casefold()!=str(wanted).strip().casefold():
+     life.log('DELIVERY_SETTINGS_MISMATCH',key=key,expected=wanted,actual=got)
+  except Exception as exc:life.log('DELIVERY_SETTINGS_READBACK_ERROR',error=repr(exc))
  return target
 def finish(r,keep,alive):
  s=life.state()
