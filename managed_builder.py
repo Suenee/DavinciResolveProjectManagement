@@ -12,6 +12,10 @@ from i18n import _
 from project_paths import active_root
 
 APP=Path(__file__).resolve().parent
+def app_version():
+ try:return (APP/'VERSION').read_text(encoding='utf-8').strip()
+ except OSError:return 'unknown'
+
 CONFIG=APP/'config.ini'; EXAMPLE=APP/'config.example.ini'; HISTORY=APP/'runtime'/'startup_history.ini'
 DATE=re.compile(r'^\d{8}\s+'); OPTIONAL=('IMAGES','PHOTOS','AUDIO')
 
@@ -43,7 +47,7 @@ class ConsoleProgress:
  def start(self,message):
   self.cancel_requested=False
   try:
-   self.root=tk.Tk();self.root.title(_('Progress — DavinciResolveProjectManagement 1.26'));self.root.resizable(False,False)
+   self.root=tk.Tk();self.root.title(_(f'Progress — DavinciResolveProjectManagement {app_version()}'));self.root.resizable(False,False)
    box=ttk.Frame(self.root,padding=18);box.pack();self.status=tk.StringVar(value=message);self.detail=tk.StringVar(value='')
    ttk.Label(box,textvariable=self.status,font=('Segoe UI',11,'bold')).pack(anchor='w')
    ttk.Label(box,textvariable=self.detail).pack(anchor='w',pady=(5,8))
