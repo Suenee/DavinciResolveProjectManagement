@@ -47,7 +47,7 @@ class ConsoleProgress:
  def start(self,message):
   self.cancel_requested=False
   try:
-   self.root=tk.Tk();self.root.title(_(f'Progress — DavinciResolveProjectManagement {app_version()}'));self.root.resizable(False,False)
+   self.root=tk.Tk();ui_windows.apply_app_icon(self.root);self.root.title(_(f'Progress — DavinciResolveProjectManagement {app_version()}'));self.root.resizable(False,False)
    box=ttk.Frame(self.root,padding=18);box.pack();self.status=tk.StringVar(value=message);self.detail=tk.StringVar(value='')
    ttk.Label(box,textvariable=self.status,font=('Segoe UI',11,'bold')).pack(anchor='w')
    ttk.Label(box,textvariable=self.detail).pack(anchor='w',pady=(5,8))
