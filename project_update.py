@@ -180,23 +180,20 @@ def build(query,keep):
     m.PROGRESS.check_cancel()
     time.sleep(min(0.1,max(0,deadline-time.monotonic())))
    life.log('MEDIA_POOL_STABILIZE_END',name=name)
-   completed=threading.Event()
+   import media_pool_watchdog
+   marker=None
+   try:
+    marker,watch_pid=media_pool_watchdog.start(name)
+    life.log('MEDIA_POOL_WATCHDOG_PROCESS',name=name,pid=watch_pid)
+   except Exception as diagnostic_error:
+    life.log('MEDIA_POOL_WATCHDOG_START_FAILED',name=name,error=repr(diagnostic_error))
    started=time.monotonic()
-   def _media_pool_watch():
-    previous=0
-    for checkpoint in (1,2,5,10,20,30,60,120,300):
-     if completed.wait(checkpoint-previous):return
-     previous=checkpoint
-     life.log('MEDIA_POOL_GET_WAIT',name=name,elapsed_seconds=round(time.monotonic()-started,2))
-    while not completed.wait(300):
-     life.log('MEDIA_POOL_GET_WAIT',name=name,elapsed_seconds=round(time.monotonic()-started,2))
    life.log('MEDIA_POOL_GET',name=name)
-   threading.Thread(target=_media_pool_watch,name='DRPM-MediaPool-Watch',daemon=True).start()
    try:
     mp=pr.GetMediaPool()
     life.log('MEDIA_POOL_GET_RETURN',name=name,elapsed_seconds=round(time.monotonic()-started,2),returned=mp is not None)
    finally:
-    completed.set()
+    if marker is not None:media_pool_watchdog.stop(marker)
    if mp is None:raise RuntimeError(f'Projekt nemá dostupný Media Pool: {name}')
    life.log('MEDIA_POOL_OK',name=name);life.log('ROOT_FOLDER_GET',name=name);master=mp.GetRootFolder()
    if master is None:raise RuntimeError(f'Projekt nemá dostupný kořen Media Poolu: {name}')
