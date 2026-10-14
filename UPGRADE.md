@@ -79,3 +79,26 @@ Do not reintroduce these failure patterns:
 - reporting success before required source/dependency verification has completed.
 
 When a new updater defect is discovered, add its recognizable symptom, root cause, and prevention rule here so the same class of failure is not repeated.
+
+## Network-share ownership and local commit protection
+
+**Symptom:** `upgrade.cmd` succeeds from a mapped drive but a subsequent
+`git add` reports `fatal: detected dubious ownership` for the underlying UNC path.
+
+**Cause:** A process-local `GIT_CONFIG_COUNT`/`safe.directory` exception
+does not persist for manual Git commands; mapped paths may resolve to UNC.
+
+**Rule:** During bootstrap, determine the canonical checkout path using a
+one-off Git trust override and persist *only that exact path* in the user's
+global `safe.directory` configuration. Never use `safe.directory=*`.
+Do not treat a successful updater run as proof that manual Git works.
+
+**Local work:** Upgrades must never use routine `git reset --hard`. Block
+staged/substantive tracked changes and use `git merge --ff-only` after
+fetching. Reject local-only commits and diverged branches rather than
+discarding them. Untracked assets such as `assets/DRPM.png` must remain
+untouched. If an untracked file collides with an incoming tracked file,
+stop and ask the user to resolve it.
+
+**Diagnostics:** The single-run upgrade log belongs at repository-root
+`upgrade.log`; application logs remain under `logs/`.
