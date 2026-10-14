@@ -15,7 +15,7 @@ APP=Path(__file__).resolve().parent
 def app_version():
  try:return (APP/'VERSION').read_text(encoding='utf-8').strip()
  except OSError:return 'unknown'
-; CONFIG=APP/'config.ini'
+CONFIG=APP/'config.ini'
 DATE_RE=re.compile(r'^(\d{8})\s+(.+?)(?:\s+(\d+))?$'); MEDIA_EXT={'.mp4','.mov','.mxf','.avi','.mkv','.mts','.m2ts','.wav','.mp3','.aac','.flac','.jpg','.jpeg','.png','.tif','.tiff','.bmp','.webp'}
 INVALID_NAME=re.compile(r'[<>:"/\\|?*]')
 def _config():
