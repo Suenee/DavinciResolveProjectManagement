@@ -51,8 +51,11 @@ if errorlevel 1 (
 
 rem Trust only this exact checkout in the user's Git configuration, so manual
 rem Git commands also work on network shares. Do not use safe.directory=*.
-set "DRPM_GIT_DIR=%CD%"
-rem Persist the exception once; do not accumulate duplicate global entries.
+rem Resolve Git's canonical checkout path, which may be UNC even when
+rem the user launched this script from a mapped network drive.
+set "DRPM_GIT_DIR="
+for /f "delims=" %%G in ('git -c safe.directory^=* rev-parse --show-toplevel 2^>nul') do set "DRPM_GIT_DIR=%%G"
+if not defined DRPM_GIT_DIR set "DRPM_GIT_DIR=%CD%"
 git config --global --get-all safe.directory 2>nul | findstr /L /X /C:"%DRPM_GIT_DIR%" >nul
 if errorlevel 1 (
   git config --global --add safe.directory "%DRPM_GIT_DIR%"
