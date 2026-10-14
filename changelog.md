@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.38 - 14.10.2026
+
+- Added a cancellable two-second stabilization interval after creating a Resolve project and before accessing its Media Pool.
+- Added isolated, daemon-thread diagnostics for a blocked `GetMediaPool()` call with elapsed-time checkpoints and completion logging.
+- Preserved the existing `build(query, keep)` entry point and the media-import workflow.
+- Native API calls remain non-interruptible in this version; the diagnostic does not claim to provide a hard timeout or responsive cancellation while `GetMediaPool()` is blocked.
+
+
 ## 1.37 - 30.09.2026
 
 - Preserve the configured Windows path representation when setting the DaVinci Resolve DELIVERY target.
