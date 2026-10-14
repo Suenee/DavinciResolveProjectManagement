@@ -175,3 +175,24 @@ def center_and_place_above_resolve(root):
         root.after(120, lambda: activate_window(root) if root.winfo_exists() else None)
     except Exception:
         pass
+
+
+def apply_app_icon(window):
+    """Apply the repository PNG icon to Tk windows (including child dialogs).
+
+    Keep the PhotoImage referenced for the lifetime of the Tk interpreter.
+    Missing assets must never prevent application startup.
+    """
+    from pathlib import Path
+    import tkinter as tk
+    icon_path = Path(__file__).resolve().parent / 'assets' / 'DRPM.png'
+    if not icon_path.is_file():
+        return False
+    try:
+        master = window.winfo_toplevel()
+        image = tk.PhotoImage(master=master, file=str(icon_path))
+        master.iconphoto(True, image)
+        master._drpm_icon_image = image
+        return True
+    except (tk.TclError, OSError):
+        return False
