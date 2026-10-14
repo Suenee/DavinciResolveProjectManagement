@@ -251,11 +251,15 @@ def create_initial_timeline(mp,master,shoot,timeline_name,intro_path=None,title_
   if item and not _append_still(mp,timeline,item,title_seconds,fps,'title'):life.log('TIMELINE_TITLE_SKIPPED',reason='append_failed',file=str(title_path))
  if intro_clip:
   # Keep intro music on A2, separate from the SHOOTING voice-isolated A1.
-  if int(timeline.GetTrackCount('audio') or 0)<2:
+  while int(timeline.GetTrackCount('audio') or 0)<2:
    subtype='stereo'
-   try:subtype=timeline.GetTrackSubType('audio',1) or 'stereo'
+   try:
+    if int(timeline.GetTrackCount('audio') or 0)>0:subtype=timeline.GetTrackSubType('audio',1) or 'stereo'
    except Exception:pass
    if not timeline.AddTrack('audio',subtype):raise RuntimeError('Cannot create intro audio track A2.')
+  audio_cfg=configparser.ConfigParser();audio_cfg.read(CONFIG,encoding='utf-8')
+  clean_name=audio_cfg.get('Timeline','CleanAudioTrackName',fallback='AUDIO').strip()
+  if clean_name and not timeline.SetTrackName('audio',2,clean_name):raise RuntimeError('Cannot name intro audio track A2.')
   life.log('TIMELINE_INTRO_VIDEO_CALL',file=str(intro_path))
   video=mp.AppendToTimeline([{'mediaPoolItem':intro_clip,'mediaType':1,'trackIndex':1}])
   if not video:raise RuntimeError('Cannot append intro video to V1.')
