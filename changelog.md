@@ -1,3 +1,11 @@
+## 1.40 - 14.10.2026
+
+- Split inserted intro clips into video on V1 and synchronized audio on A2, preserving Voice Isolation for SHOOTING audio on A1 and disabling it for the named clean track.
+- Leave projects without an inserted intro unchanged; automatic scene-cut detection remains deferred.
+- Set both Deliver TargetDir and CustomName after loading the configured render preset.
+- Log requested, applied, and read-back Deliver settings, including any detectable mismatch.
+- Preserve existing Media Pool import and watchdog behavior.
+
 # Changelog
 
 ## 1.39 - 14.10.2026
