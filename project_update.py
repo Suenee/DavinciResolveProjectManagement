@@ -171,9 +171,28 @@ def build(query,keep):
    if pr is None:raise RuntimeError(f'Nelze vytvořit ani znovu načíst projekt: {name}')
    life.log('PROJECT_OBJECT_OK',name=name)
    phase='MEDIA_POOL';_stage(phase)
-   # Resolve may still be opening a newly created project after CreateProject returns.
-   # Keep the original project object and workflow; instrument only this boundary.
-   import threading,time
+   # Do not assume CreateProject returning means Resolve has selected the project.
+   # Poll lightweight project identity before touching the Media Pool. This is a
+   # readiness gate, not a guarantee that Resolve's native IPC cannot hang.
+   import time
+   life.log('PROJECT_READINESS_BEGIN',name=name,timeout_seconds=15)
+   ready_deadline=time.monotonic()+15
+   readiness_attempt=0
+   while True:
+    m.PROGRESS.check_cancel()
+    readiness_attempt+=1
+    life.log('PROJECT_READINESS_PROBE',name=name,attempt=readiness_attempt)
+    current=pm.GetCurrentProject()
+    active_name=current.GetName() if current is not None else None
+    life.log('PROJECT_READINESS_RESULT',name=name,attempt=readiness_attempt,active=active_name)
+    if active_name and active_name.casefold()==name.casefold():
+     pr=current
+     life.log('PROJECT_READINESS_OK',name=name,attempt=readiness_attempt)
+     break
+    if time.monotonic()>=ready_deadline:
+     raise RuntimeError(f'Resolve did not activate the new project within 15 seconds: {name}; active={active_name!r}')
+    time.sleep(0.5)
+   # Preserve the short settle delay for UI initialization after identity match.
    life.log('MEDIA_POOL_STABILIZE_BEGIN',name=name,seconds=2)
    deadline=time.monotonic()+2
    while time.monotonic()<deadline:
