@@ -8,6 +8,15 @@
 
 # Changelog
 
+## 1.43 - 19.10.2026
+
+- Verify that DaVinci Resolve has activated the newly created project before requesting its Media Pool.
+- Add bounded 15-second project-identity polling with cancellation checks and detailed readiness logs.
+- Keep the existing 2-second stabilization after project identity confirmation.
+- This readiness gate does not impose a timeout on a native Resolve API call that itself blocks; process isolation and cancellation recovery remain separate work.
+- Intended for comparison of Resolve 21.1.0 and 21.1.1; neither version has been validated locally.
+
+
 ## 1.42 - 14.10.2026
 
 - Persist a repository-specific Git safe.directory exception for mapped/UNC network checkouts so manual Git commands work after the updater exits.
