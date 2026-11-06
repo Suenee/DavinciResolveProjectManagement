@@ -8,6 +8,16 @@
 
 # Changelog
 
+## 1.44 - 06.11.2026
+
+- Run the existing Resolve workflow in a separate child process controlled by an independent Tk supervisor.
+- Show an emergency Stop DRPM worker control when a workflow lasts over 20 seconds; stopping terminates only the child Python process, not Resolve.exe.
+- Preserve existing workflow dialogs and progress behavior in the worker process.
+- Record worker lifecycle and cancellation events in the application log.
+- A stopped worker may leave an incomplete Resolve project; do not automatically retry non-idempotent operations.
+- This is process-level recovery, not a cure for blocked Resolve API calls; automatic safe retries are deferred.
+
+
 ## 1.43 - 19.10.2026
 
 - Verify that DaVinci Resolve has activated the newly created project before requesting its Media Pool.
