@@ -117,5 +117,10 @@ project_update.set_timeline_creator(_create_initial_timeline)
 managed_builder.build=project_update.build
 
 if __name__=='__main__':
+ if os.environ.get('DRPM_SUPERVISED_CHILD') != '1':
+  import sys
+  from pathlib import Path
+  import workflow_supervisor
+  raise SystemExit(workflow_supervisor.run(Path(__file__).resolve(), sys.argv[1:]))
  if not _claim_instance():raise SystemExit(0)
  raise SystemExit(managed_builder.main())
